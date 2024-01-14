@@ -6,4 +6,6 @@ public interface FmPlayerDataCallback {
     public void onProgress(long time, long currentTime);
     public boolean onVideoPacket(int width, int height,int format, byte[] packet);
     public void onEnd();
+
+    public void onLoading();
 }

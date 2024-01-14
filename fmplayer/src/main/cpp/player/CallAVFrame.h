@@ -19,5 +19,6 @@ public:
     virtual void onProgress(int64_t time, int64_t currentTime) = 0;
     virtual void onEnd() = 0;
     virtual void release() = 0;
+    virtual void onLoading() = 0;
 };
 #endif //QTANDROID_CALLAVFRAME_H

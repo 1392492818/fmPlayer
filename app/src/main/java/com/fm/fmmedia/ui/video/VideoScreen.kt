@@ -27,6 +27,7 @@ import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -62,6 +63,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -74,8 +76,10 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.navigation.NavHostController
@@ -87,6 +91,8 @@ import com.fm.fmmedia.compose.loading
 import com.fm.fmmedia.repository.VideoGroupRepository
 import com.fm.fmmedia.ui.Screen
 import com.fm.fmmedia.viewmodel.VideoGroupViewModel
+import com.google.accompanist.systemuicontroller.SystemUiController
+import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import kotlinx.coroutines.delay
 
 
@@ -116,16 +122,28 @@ fun setBrightness(activity: Activity, brightness: Float) {
 fun control(
     playerImage: MutableState<Int>,
     isPlayer: MutableState<Boolean>,
-    fmGlView: FmGlView?,
+    fmGlView: MutableState<FmGlView?>,
     position: MutableState<Float>,
     progress: MutableState<Float>,
     isSeek: MutableState<Boolean>,
+    isFull: MutableState<Boolean>,
+    fullHeight: MutableState<Modifier>,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    var isLandscape by remember {
-        mutableStateOf(false)
-    }
+    val window = (context as? ComponentActivity)?.window
+    window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
+    LifecycleEffect(onResume = {
+        isPlayer.value = true
+    }, onPause = {
+        isPlayer.value = false
+    }, onDestroy = {
+        Log.e("测试", "onDestroy")
+        fmGlView.value?.release()
+        isPlayer.value = false
+    })
+    // 设置屏幕保持唤醒状态
 
     Row(
         modifier = modifier
@@ -155,7 +173,7 @@ fun control(
             onValueChange = {
                 position.value = it
                 isSeek.value = true
-                fmGlView?.seek(position.value.toLong())
+                fmGlView.value?.seek(position.value.toLong())
             },
             modifier = Modifier
                 .padding(5.dp)
@@ -172,26 +190,41 @@ fun control(
             ),
             modifier = Modifier
                 .clickable {
-                    isLandscape = !isLandscape
-                    if (isLandscape) {
-                        // 设置横屏方向
-                        (context as? ComponentActivity)?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-                    } else {
-                        // 恢复为竖屏方向
-                        (context as? ComponentActivity)?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                    }
+//                    fmGlView?.release()
+                    isFull.value = !isFull.value
                 }
                 .width(30.dp)
                 .height(30.dp)
         )
+        val systemUiController: SystemUiController = rememberSystemUiController()
+
+        DisposableEffect(isFull.value) {
+            Log.e("测试", "反向旋转了")
+            if (isFull.value) {
+                // 设置横屏方向
+                (context as? ComponentActivity)?.requestedOrientation =
+                    ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                systemUiController.isStatusBarVisible = false // Status bar
+                systemUiController.isNavigationBarVisible = false // Navigation bar
+                systemUiController.isSystemBarsVisible = false
+                fullHeight.value = Modifier.fillMaxHeight()
+            } else {
+                // 恢复为竖屏方向
+                (context as? ComponentActivity)?.requestedOrientation =
+                    ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                fullHeight.value = Modifier.height(250.dp)
+
+            }
+            onDispose {  }
+        }
 
         DisposableEffect(isPlayer.value) {
             if (isPlayer.value) {
                 playerImage.value = R.drawable.baseline_pause_24
-                fmGlView?.play()
+                fmGlView.value?.play()
             } else {
                 playerImage.value = R.drawable.baseline_play_arrow_24
-                fmGlView?.pause()
+                fmGlView.value?.pause()
             }
             onDispose { /* cleanup logic here */ }
         }
@@ -270,36 +303,38 @@ fun videoScreen(
     var progress = remember {
         mutableFloatStateOf(0f)
     }
-    var position = remember {
+    var position = rememberSaveable {
         mutableFloatStateOf(0f)
     }
-    var fmGlView: FmGlView? = null;
+    var fmGlView:MutableState<FmGlView?> = remember {
+        mutableStateOf(null)
+    };
     var isSeek = remember {
         mutableStateOf(false)
     }
     var selectSource by remember {
         mutableStateOf("")
     }
-    var selectIndex by remember {
+    var selectIndex by rememberSaveable {
         mutableIntStateOf(0)
+    }
+
+    var isFull = rememberSaveable {
+        mutableStateOf(false)
     }
 
 
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
     val screenWidth = with(density) { configuration.screenWidthDp.dp.toPx() }
-    val screenHeight = with(density) { configuration.screenHeightDp.dp.toPx() }
     var tapOrientation: TapOrientation by remember {
         mutableStateOf(TapOrientation.LEFT)
     }
     var linearProgress by remember {
         mutableFloatStateOf(0f)
     }
-    LifecycleEffect(onResume = {
-        isPlayer.value = true
-    }, onPause = {
-        isPlayer.value = false
-    })
+
+
 
 
     var brightness by remember {
@@ -311,9 +346,7 @@ fun videoScreen(
     Log.e("测试", "亮度" + brightness)
 
     val audioManager = LocalContext.current.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-    var volume by remember {
-        mutableIntStateOf(audioManager.getStreamVolume(AudioManager.STREAM_MUSIC))
-    }
+
 
     var isShowProgress by remember {
         mutableStateOf(false)
@@ -324,16 +357,27 @@ fun videoScreen(
 
     val volumeMax = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
     val volumeMin = audioManager.getStreamMinVolume(AudioManager.STREAM_MUSIC)
+    val volumeMinProgress:Float = 0f
+    val volumeMaxProgress:Float = 100f
+    var volume:Float by remember {
+        mutableFloatStateOf(audioManager.getStreamVolume(AudioManager.STREAM_MUSIC) / (volumeMax - volumeMin) * volumeMaxProgress)
+    }
     var isShowControl by remember {
         mutableStateOf(true)
     }
     var isToucher by remember {
         mutableStateOf(false)
     }
+    var modifier = remember {
+        mutableStateOf(Modifier.height(250.dp))
+    }
+    var isVideoLoading by remember {
+        mutableStateOf(true)
+    }
     LaunchedEffect(Unit) {
         while (true) {
             delay(5000)
-            if(isToucher) {
+            if (isToucher) {
                 isToucher = false
             } else {
                 isShowProgress = false
@@ -347,8 +391,7 @@ fun videoScreen(
         Scaffold { innerPadding ->
             Column(modifier = Modifier.padding(innerPadding)) {
                 Box(
-                    modifier = Modifier
-                        .height(250.dp)
+                    modifier = modifier.value
                         .fillMaxWidth()
                         .background(Color.Black)
                         .pointerInput(Unit) {
@@ -357,7 +400,7 @@ fun videoScreen(
                                 onPress = {
                                     Log.e("onPress", "按下" + it.x)
                                     isToucher = true
-                                    isShowControl = true
+                                    isShowControl = !isShowControl
                                     if (it.x < screenWidth / 2) {
                                         Log.e("left", "left")
                                         tapOrientation = TapOrientation.LEFT
@@ -384,6 +427,7 @@ fun videoScreen(
                             orientation = Orientation.Horizontal,
                             state = rememberDraggableState { delta ->
                                 // 得到相比于上次改变的位移
+                                isShowControl = true
                                 Log.e("Vertical", delta.toString())
                                 val newPosition = position.value + delta.toInt()
                                 if (newPosition < 0) {
@@ -394,8 +438,7 @@ fun videoScreen(
                                     position.value = newPosition
                                 }
                                 isSeek.value = true
-                                fmGlView?.seek(position.value.toLong())
-//                                offsetX += delta
+                                fmGlView.value?.seek(position.value.toLong())
                             })
                         .draggable(
                             orientation = Orientation.Vertical,
@@ -403,25 +446,25 @@ fun videoScreen(
                                 // 得到相比于上次改变的位移
 //                                offsetX += delta
                                 if (tapOrientation == TapOrientation.RIGHT) {
-                                    Log.e(
-                                        "音量",
-                                        delta.toString() + "min:" + volumeMin + ",max:" + volumeMax
-                                    )
+
                                     volume -= delta.toInt()
-                                    if (volume > volumeMax) volume = volumeMax
-                                    if (volume < volumeMin) volume = volumeMin
+                                    if (volume > volumeMaxProgress) volume = volumeMaxProgress
+                                    if (volume < volumeMinProgress) volume = volumeMinProgress
+                                    Log.e(
+                                        "测试",
+                                        (volume / volumeMaxProgress * (volumeMax - volumeMin)).toString()
+                                    )
 
                                     audioManager.setStreamVolume(
                                         AudioManager.STREAM_MUSIC,
-                                        volume,
+                                        (volume / volumeMaxProgress * (volumeMax - volumeMin)).toInt(),
                                         0
                                     );
                                     linearProgress =
-                                        (volume.toFloat() / volumeMax.toFloat()).toFloat()
+                                        (volume / volumeMaxProgress)
                                     isShowProgress = true
                                     settingIcon = R.drawable.baseline_volume_mute_24
                                 } else {
-                                    Log.e("亮度", delta.toString())
                                     brightness -= delta
                                     if (brightness > 255) brightness = 255f
                                     if (brightness < 0) brightness = 0f
@@ -441,7 +484,9 @@ fun videoScreen(
                             FmGlView(
                                 context = context,
                                 url = videoGroup?.video!![selectIndex].source,
+                                seekTime = position.value.toLong(),
                                 progress = { currentPosition, duration, isSeekSuccess ->
+                                    isVideoLoading = false
                                     if (isSeekSuccess) {
                                         isSeek.value = false
                                     }
@@ -455,12 +500,14 @@ fun videoScreen(
 
                                         val source = videoGroup?.video?.get(selectIndex)
                                         source?.let {
-                                            fmGlView?.reset(source = it.source)
+                                            fmGlView.value?.reset(source = it.source)
                                             selectSource = it.source
                                             isPlayer.value = true
                                         }
 
                                     }
+                                }, onLoading = {
+                                    isVideoLoading = true
                                 })
                         }, modifier = Modifier
                             .fillMaxSize()
@@ -469,22 +516,29 @@ fun videoScreen(
                                 width.value = layoutCoordinates.size.width
                                 height.value = layoutCoordinates.size.height
                             }, update = { it ->
-                            fmGlView = it
+                            fmGlView.value = it
+                        }, onRelease = {
+                           it.release()
                         }
                         )
                     }
 
-                    Icon(
-                        imageVector = Icons.Outlined.ArrowBack,
-                        tint = Color.White,
-                        contentDescription = stringResource(R.string.home_label_search),
-                        modifier = Modifier
-                            .clickable {
-                                navController.popBackStack()
-                                fmGlView?.release()
-                            }
-                            .padding(10.dp)
-                    )
+                    if(isShowControl) {
+                        Icon(
+                            imageVector = Icons.Outlined.ArrowBack,
+                            tint = Color.White,
+                            contentDescription = stringResource(R.string.home_label_search),
+                            modifier = Modifier
+                                .clickable {
+                                    if (isFull.value) {
+                                        isFull.value = false
+                                    } else {
+                                        navController.popBackStack()
+                                    }
+                                }
+                                .padding(10.dp)
+                        )
+                    }
 
                     if (isShowProgress) {
                         setting(
@@ -505,10 +559,16 @@ fun videoScreen(
                             position = position,
                             isSeek = isSeek,
                             progress = progress,
+                            isFull = isFull,
+                            fullHeight = modifier,
                             modifier = Modifier.align(
                                 Alignment.BottomCenter
                             )
                         )
+                    }
+
+                    if(isVideoLoading){
+                        loading(color = R.color.white)
                     }
 
                 }
@@ -543,10 +603,13 @@ fun videoScreen(
                                             .fillMaxHeight()
                                             .background(Color.Black)
                                             .clickable {
-                                                fmGlView?.reset(it.source)
-                                                selectSource = it.source
-                                                selectIndex = index
-                                                isPlayer.value = true
+                                                if(selectIndex != index) {
+                                                    fmGlView.value?.reset(it.source)
+                                                    selectSource = it.source
+                                                    selectIndex = index
+                                                    isPlayer.value = true
+                                                    isVideoLoading = true
+                                                }
                                             },
                                         contentAlignment = Alignment.Center
                                     ) {
@@ -568,7 +631,6 @@ fun videoScreen(
                         Text("Item $it", modifier = Modifier.padding(2.dp))
                     }
 
-
                 }
 
             }
@@ -579,7 +641,11 @@ fun videoScreen(
     }
     BackHandler(enabled = true) {
         Log.e("back", "返回")
-        fmGlView?.release()
-        navController.popBackStack()
+        if(isFull.value) {
+            isFull.value = false
+        } else {
+            navController.popBackStack()
+        }
+
     }
 }

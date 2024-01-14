@@ -111,13 +111,13 @@ namespace fm {
     }
 
 
-    void FmPlayer::startPlayer(const char *input) {
+    void FmPlayer::startPlayer(const char *input, long time) {
 //        qDebug() << input;
         this->input = input;
 //        std::thread([&]() {
         std::lock_guard<std::mutex> lockGuard(decoderMutex);
         this->videoDecoder = std::make_unique<VideoDecoder>(this->input.data(), false);
-        if (this->videoDecoder->init()) {
+        if (this->videoDecoder->init(time)) {
             if (!this->videoDecoder->isPrepare1()) return;
             this->isRunning = true;
             this->isStop = false;
@@ -227,6 +227,8 @@ namespace fm {
                 if (!videoPacketQueue.empty() && videoCodecContext != nullptr) {
                     avPacket = videoPacketQueue.front();
                     videoPacketQueue.pop();
+                } else {
+                    callAvFrame->onLoading();
                 }
             }
             if (avPacket == nullptr || videoCodecContext == nullptr) continue;

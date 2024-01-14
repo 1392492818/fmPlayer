@@ -67,18 +67,22 @@ fun formatSecondsToHHMMSS(seconds: Long): String {
 
 @RequiresApi(Build.VERSION_CODES.Q)
 @SuppressLint("ViewConstructor")
-class FmGlView(context: Context, url:String, progress:(currentPosition:Long, duration:Long, isSeek:Boolean)->Unit, endCallback:()->Unit = {}) : GLSurfaceView(context),PlayerCallback {
+class FmGlView(context: Context, url:String, seekTime:Long,progress:(currentPosition:Long, duration:Long, isSeek:Boolean)->Unit, endCallback:()->Unit = {}, onLoading: ()->Unit) : GLSurfaceView(context),PlayerCallback {
     private lateinit var videoRenderOES: VideoRenderOES;
     private lateinit var surface: Surface;
     private val TAG:String = FmGlView::class.simpleName.toString();
-    private var fmPlayer:FmPlayer = FmPlayer();
+    private var  fmPlayer:FmPlayer = FmPlayer();
     private val baseUrl = "http://192.168.31.163:9090/videos/"
     var callback: (currentPosition:Long, duration:Long, isSeek: Boolean)->Unit;
     var endCallback: ()->Unit;
+    var onLoading: ()->Unit;
+    var seekTime:Long
     init {
         this.setEGLContextClientVersion(2)
         callback = progress;
+        this.seekTime = seekTime
         this.endCallback = endCallback
+        this.onLoading = onLoading
         val sourceUrl = baseUrl + url
 
         videoRenderOES = VideoRenderOES(context, this.width, this.height) { videoTexture ->
@@ -89,11 +93,13 @@ class FmGlView(context: Context, url:String, progress:(currentPosition:Long, dur
     }
 
     fun startPlayer(source:String){
-        fmPlayer.start(source, this.surface, null, this)
+        fmPlayer.start(source, this.surface, null, this, seekTime)
         fmPlayer.play()
+//        fmPlayer.seek(seekTime)
     }
 
     fun reset(source: String){
+        seekTime = 0
         fmPlayer.release()
         fmPlayer = FmPlayer()
         startPlayer(baseUrl+source)
@@ -119,6 +125,11 @@ class FmGlView(context: Context, url:String, progress:(currentPosition:Long, dur
     }
 
     override fun softwareDecoder() {
+    }
+
+    override fun loading() {
+        Log.e("测试", "数据加载中")
+        this.onLoading()
     }
 
     override fun voidInfo(width: Int, height: Int) {

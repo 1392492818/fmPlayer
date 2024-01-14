@@ -137,6 +137,16 @@ bool VideoPlayer::onVideoPacket(int width, int height, int format, AVPacket *pac
     return isHardDecoder;
 }
 
+
+void VideoPlayer::onLoading() {
+    JNIEnv *env;
+    g_VM->AttachCurrentThread(&env, nullptr);
+    jclass callbackClass = env->GetObjectClass(jobject1);
+    jmethodID onEnd = env->GetMethodID(callbackClass, "onLoading", "()V");
+    env->CallVoidMethod(jobject1, onEnd);
+    g_VM->DetachCurrentThread();
+}
+
 VideoPlayer::~VideoPlayer() {
 
 }

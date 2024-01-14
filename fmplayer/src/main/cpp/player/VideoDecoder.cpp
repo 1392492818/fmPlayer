@@ -212,7 +212,7 @@ namespace fm {
         return avFrameInfo;
     }
 
-    bool VideoDecoder::init() {
+    bool VideoDecoder::init(long time) {
         AVDictionary *opts = NULL;
         std::cout << input << std::endl;
         av_dict_set(&opts, "rw_timeout", "5000000", 0);//设置超时3秒
@@ -234,6 +234,7 @@ namespace fm {
         findDecoder();
         // 打开解码器
         openDecoder();
+        seek(time *AV_TIME_BASE);
         return true;
     }
 

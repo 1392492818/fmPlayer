@@ -14,7 +14,7 @@ class VideoGroupRepository {
         MutableStateFlow<List<VideoGroupResponse>>(emptyList())
 
     val videoGroup: MutableStateFlow<VideoGroupResponse?> = MutableStateFlow<VideoGroupResponse?>(null)
-
+    val TAG = VideoGroupRepository::class.simpleName
     suspend fun getData(
         pageNum: Int,
         pageSize: Int,
@@ -34,8 +34,13 @@ class VideoGroupRepository {
 
 
     suspend fun findIdData(id: Int){
-        val result: Result = ApiRequest.create().findIdVideoGroup(id);
-        val videoGroupData = result.parseData<VideoGroupResponse>()
-        videoGroup.value = videoGroupData
+        try {
+            val result: Result = ApiRequest.create().findIdVideoGroup(id);
+            val videoGroupData = result.parseData<VideoGroupResponse>()
+            videoGroup.value = videoGroupData
+        }catch (e:Exception){
+            e.message?.let { Log.e(TAG, it) }
+        }
+
     }
 }

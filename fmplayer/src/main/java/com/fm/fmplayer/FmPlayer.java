@@ -26,7 +26,7 @@ public class FmPlayer implements FmPlayerDataCallback {
     private final static String TAG = FmPlayer.class.getSimpleName();
     public String id;
 
-    public native void startPlayer(String url, FmPlayerDataCallback fmPlayerDataCallback, String id);
+    public native void startPlayer(String url, FmPlayerDataCallback fmPlayerDataCallback, String id, long time);
 
     public native void stop(String id);
 
@@ -70,11 +70,16 @@ public class FmPlayer implements FmPlayerDataCallback {
 
     public void seek(long time) {
         try {
-            if (executorService.isShutdown()) return;
+            if (executorService.isShutdown()) {
+                Log.e(TAG, "没办法设置");
+                isSeek = true;
+                return;
+            }
             executorService.submit(new Runnable() {
                 @Override
                 public void run() {
                     seek(id, time);
+                    Log.e(TAG, time+"设置");
                     isSeek = true;
                 }
             });
@@ -99,7 +104,7 @@ public class FmPlayer implements FmPlayerDataCallback {
     }
 
 
-    public void start(String url, Surface surface, FmGLSurfaceView fmGLSurfaceView, PlayerCallback playerCallback) {
+    public void start(String url, Surface surface, FmGLSurfaceView fmGLSurfaceView, PlayerCallback playerCallback, long time) {
         Log.e(TAG, id);
         this.surface = surface;
         this.playerCallback = playerCallback;
@@ -107,12 +112,13 @@ public class FmPlayer implements FmPlayerDataCallback {
         executorService.submit(new Runnable() {
             @Override
             public void run() {
-                startPlayer(url, FmPlayer.this, id);
+                startPlayer(url, FmPlayer.this, id, time);
             }
         });
     }
 
     public void release() {
+        if (this.executorService.isShutdown()) return;
         this.executorService.submit(new Runnable() {
             @Override
             public void run() {
@@ -204,6 +210,11 @@ public class FmPlayer implements FmPlayerDataCallback {
     @Override
     public void onEnd() {
         playerCallback.end();
+    }
+
+    @Override
+    public void onLoading() {
+        playerCallback.loading();
     }
 
 

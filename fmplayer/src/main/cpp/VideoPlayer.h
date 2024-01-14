@@ -24,6 +24,8 @@ public:
 
     virtual void release();
 
+    virtual void onLoading();
+
     bool onVideoPacket(int width,int height,int format, AVPacket *packet) override;
 
 private:

@@ -114,7 +114,7 @@ namespace fm {
 
     public:
         bool isPrepare1() const;
-        bool init();
+        bool init(long time = 0);
 
     public:
         bool isHardDecoder1() const;
