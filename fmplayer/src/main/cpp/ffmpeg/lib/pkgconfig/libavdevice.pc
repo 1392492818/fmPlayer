@@ -1,0 +1,14 @@
+prefix=/home/fuweicong/FFmpeg-master/android/armv8-a
+exec_prefix=${prefix}
+libdir=/home/fuweicong/FFmpeg-master/android/armv8-a/lib
+includedir=/home/fuweicong/FFmpeg-master/android/armv8-a/include
+
+Name: libavdevice
+Description: FFmpeg device handling library
+Version: 60.4.100
+Requires: 
+Requires.private: libavfilter >= 9.14.100, libswscale >= 7.6.100, libavformat >= 60.18.100, libavcodec >= 60.35.100, libswresample >= 4.13.100, libavutil >= 58.32.100
+Conflicts:
+Libs: -L${libdir}  -lavdevice 
+Libs.private: -lm -latomic -landroid -lcamera2ndk -lmediandk -pthread
+Cflags: -I${includedir}
