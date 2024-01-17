@@ -107,12 +107,12 @@ void VideoPlayer::onProgress(int64_t time, int64_t currentTime) {
     g_VM->DetachCurrentThread();
 }
 
-void VideoPlayer::onEnd() {
+void VideoPlayer::onEnd(bool isError) {
     JNIEnv *env;
     g_VM->AttachCurrentThread(&env, nullptr);
     jclass callbackClass = env->GetObjectClass(jobject1);
-    jmethodID onEnd = env->GetMethodID(callbackClass, "onEnd", "()V");
-    env->CallVoidMethod(jobject1, onEnd);
+    jmethodID onEnd = env->GetMethodID(callbackClass, "onEnd", "(Z)V");
+    env->CallVoidMethod(jobject1, onEnd, isError);
     g_VM->DetachCurrentThread();
 }
 
@@ -158,5 +158,7 @@ void VideoPlayer::release() {
 //    env->DeleteGlobalRef(jobject1);
 //    g_VM->DetachCurrentThread();
 }
+
+
 
 

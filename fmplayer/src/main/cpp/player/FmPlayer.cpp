@@ -121,6 +121,8 @@ namespace fm {
             if (!this->videoDecoder->isPrepare1()) return;
             this->isRunning = true;
             this->isStop = false;
+        } else {
+            isError = true;
         }
 //        }).detach();
 
@@ -150,6 +152,9 @@ namespace fm {
             { // seek 互斥锁
                 std::lock_guard<std::mutex> seekLock(decoderSeekMutex);
                 avPacketData = this->videoDecoder->readPacket();
+                if(avPacketData.isError1()) {
+                    this->isError = true;
+                }
                 if (avPacketData.isEnd1()) {
                     LOGE("运行结束");
                     this->isRunning = false;
@@ -313,7 +318,6 @@ namespace fm {
                     continue;
                 }
             }
-
 
             {
                 AVPacket *avPacket = nullptr;
@@ -501,7 +505,7 @@ namespace fm {
         this->signal--;
         if (this->callAvFrame != nullptr && this->isStop == false) {
             LOGE("音频结束了");
-            this->callAvFrame->onEnd();
+            this->callAvFrame->onEnd(this->isError);
         }
 
 
@@ -574,7 +578,7 @@ namespace fm {
 
             int64_t duration = videoStream->duration * av_q2d(videoStream->time_base);
             if (duration < 0) duration = 0;
-            if (this->callAvFrame != nullptr)
+            if (this->callAvFrame != nullptr && !isError)
                 this->callAvFrame->onProgress(duration, this->videoPts / 1000);
         }
     }

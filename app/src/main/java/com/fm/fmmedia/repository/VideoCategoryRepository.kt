@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 
 
 
-class VideoCategoryRepository {
+class VideoCategoryRepository :BaseRepository() {
     val page: MutableStateFlow<Page?> =
         MutableStateFlow<Page?>(null)
 
@@ -24,6 +24,7 @@ class VideoCategoryRepository {
         isNext: Boolean = false
     ) {
         try {
+            isRequestError.value = false
             val result: Result = ApiRequest.create().categoryVideo(pageNum, pageSize, search, sort);
             val videoCategoryPage = result.parseData<Page>()
             if (isNext) {
@@ -40,6 +41,7 @@ class VideoCategoryRepository {
 
         } catch (e: Exception) {
             page.value = null
+            isRequestError.value = true
             Log.e(TAG, "请求异常"+ e.message)
         }
     }

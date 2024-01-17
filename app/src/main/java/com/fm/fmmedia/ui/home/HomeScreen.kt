@@ -5,11 +5,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -44,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.fm.fmmedia.R
 import com.fm.fmmedia.api.response.CategoryVideoResponse
+import com.fm.fmmedia.compose.RequestError
 import com.fm.fmmedia.compose.SearchBar
 import com.fm.fmmedia.compose.SearchState
 import com.fm.fmmedia.compose.SwipeRefresh
@@ -90,6 +93,7 @@ fun homeScreen(
 
 
     val videoCategoryPage by videoCategoryViewModel.videoCategoryPage.observeAsState()
+    val isRequestError by videoCategoryViewModel.isRequestError.observeAsState()
     Scaffold(
         bottomBar = {
             val currentRoute = navController.currentBackStackEntry?.destination?.route
@@ -119,145 +123,99 @@ fun homeScreen(
 //                Log.e("数据", videoCategoryPage?.getData<List<CategoryVideoResponse>>().toString())
 //                mutableStateOf(videoCategoryPage?.getData<List<CategoryVideoResponse>>())
 //            }
-            SwipeRefresh(
-                items = videoCategoryPage?.getData<List<CategoryVideoResponse>>(),
-                refreshing = isRefreshing,
-                loading = isLoading,
-                finishing = isFinishing,
-                onRefresh = {
-                    isRefreshing = true
-                    isFinishing = false
-                    scope.launch {
-                        delay(1000)
-                        videoCategoryViewModel.getVideoCategory()
-                        isRefreshing = false
-                    }
-                },
-                onLoad = {
-                    scope.launch {
-                        delay(1000)
-                        if (videoCategoryPage?.hasNextPage == false) {
-                            isFinishing = true
-                        } else {
-                            val pageNum = videoCategoryPage?.nextPage
-                            val pageSize = videoCategoryPage?.pageSize
-                            if (pageNum != null && pageSize != null) {
-                                videoCategoryViewModel.getVideoCategory(
-                                    pageNum = pageNum,
-                                    pageSize = pageSize,
-                                    isNext = true
-                                )
+            if (isRequestError == false) {
+                SwipeRefresh(
+                    items = videoCategoryPage?.getData<List<CategoryVideoResponse>>(),
+                    refreshing = isRefreshing,
+                    loading = isLoading,
+                    finishing = isFinishing,
+//                    modifier = Modifier.fillMaxWidth(),
+                    onRefresh = {
+                        isRefreshing = true
+                        isFinishing = false
+                        scope.launch {
+                            delay(1000)
+                            videoCategoryViewModel.getVideoCategory()
+                            isRefreshing = false
+                        }
+                    },
+                    onLoad = {
+                        scope.launch {
+                            delay(1000)
+                            if (videoCategoryPage?.hasNextPage == false) {
+                                isFinishing = true
+                            } else {
+                                val pageNum = videoCategoryPage?.nextPage
+                                val pageSize = videoCategoryPage?.pageSize
+                                if (pageNum != null && pageSize != null) {
+                                    videoCategoryViewModel.getVideoCategory(
+                                        pageNum = pageNum,
+                                        pageSize = pageSize,
+                                        isNext = true
+                                    )
+                                }
                             }
                         }
-                    }
 
 //                    isLoading = false
-                }) { index, videoCategory ->
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(10.dp, 0.dp, 5.dp, 0.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = videoCategory.name,
-                            style = MaterialTheme.typography.h6,
-                            color = FmMediaTheme.colors.brand,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier
-                                .weight(1f)
-                                .wrapContentWidth(Alignment.Start)
-                        )
-                    }
-                }
-                Box {
-                    LazyRow {
-                        items(videoCategory.videoGroup) { videoGroup ->
-                            videoItem(
+                    }) { index, videoCategory ->
+
+                    Column(modifier = Modifier.wrapContentHeight().padding(10.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().height(40.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = videoCategory.name,
+                                style = MaterialTheme.typography.h6,
+                                color = FmMediaTheme.colors.brand,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier
-                                    .height(180.dp)
-                                    .width(screenWidth / 2)
-                                    .padding(10.dp)
-                                    .clickable {
-                                        onVideoGroupClick(videoGroup.id)
-                                    },
-                                name = videoGroup.name,
-                                imageUrl = "https://img0.baidu.com/it/u=428280756,4053559961&fm=253&fmt=auto&app=138&f=JPEG?w=800&h=500"
+                                    .weight(1f)
+                                    .wrapContentWidth(Alignment.Start)
                             )
                         }
+                        if (!videoCategory.videoGroup.isEmpty()) {
+
+                            LazyRow(modifier = Modifier.height(180.dp)) {
+                                items(videoCategory.videoGroup) { videoGroup ->
+                                    videoItem(
+                                        modifier = Modifier
+                                            .height(180.dp)
+                                            .width(screenWidth / 2)
+                                            .padding(10.dp)
+                                            .clickable {
+                                                onVideoGroupClick(videoGroup.id)
+                                            },
+                                        name = videoGroup.name,
+                                        imageUrl = "https://img0.baidu.com/it/u=428280756,4053559961&fm=253&fmt=auto&app=138&f=JPEG?w=800&h=500"
+                                    )
+                                }
+                            }
+                        } else {
+                            videoItem(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(180.dp)
+                                    .padding(10.dp),
+                                name = "",
+                                imageUrl = R.drawable.not_data
+                            )
+                        }
+                        Divider()
                     }
-                    if (videoCategory.videoGroup.isEmpty()) {
-                        videoItem(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(180.dp)
-                                .padding(10.dp),
-                            name = "",
-                            imageUrl = R.drawable.not_data
-                        )
-                    }
+
                 }
+            } else {
 
-                Divider()
-
+                RequestError(modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight()
+                    .clickable {
+                        videoCategoryViewModel.getVideoCategory()
+                    })
             }
-
-//            LazyColumn {
-//                items(videoCategory!!) { videoCategory ->
-//                    Box(
-//                        modifier = Modifier
-//                            .fillMaxWidth()
-//                            .padding(10.dp, 0.dp, 5.dp, 0.dp)
-//                    ) {
-//                        Row(
-//                            modifier = Modifier.fillMaxWidth(),
-//                            verticalAlignment = Alignment.CenterVertically
-//                        ) {
-//                            Text(
-//                                text = videoCategory.name,
-//                                style = androidx.compose.material.MaterialTheme.typography.h6,
-//                                color = FmMediaTheme.colors.brand,
-//                                maxLines = 1,
-//                                overflow = TextOverflow.Ellipsis,
-//                                modifier = Modifier
-//                                    .weight(1f)
-//                                    .wrapContentWidth(Alignment.Start)
-//                            )
-//                        }
-//                    }
-//                    Box{
-//                        LazyRow {
-//                            items(videoCategory.videoGroup) { videoGroup ->
-//                                videoItem(
-//                                    modifier = Modifier
-//                                        .height(180.dp)
-//                                        .width(screenWidth / 2)
-//                                        .padding(10.dp),
-//                                    name = videoGroup.name,
-//                                    imageUrl = "https://img0.baidu.com/it/u=428280756,4053559961&fm=253&fmt=auto&app=138&f=JPEG?w=800&h=500"
-//                                )
-//                            }
-//                        }
-//                        if (videoCategory.videoGroup.isEmpty()) {
-//                            videoItem(
-//                                modifier = Modifier
-//                                    .fillMaxWidth()
-//                                    .height(180.dp)
-//                                    .padding(10.dp),
-//                                name = "",
-//                                imageUrl = R.drawable.not_data
-//                            )
-//                        }
-//                    }
-//
-//                    Divider()
-//                }
-//            }
-
 
         }
     }

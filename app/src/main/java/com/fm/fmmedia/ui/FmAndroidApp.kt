@@ -169,7 +169,11 @@ fun fmNavHost(
             val id: Int? = it.arguments?.getInt("id")
             Log.e("id", id.toString());
             if (id != null) {
-                videoScreen(id = id, navController = navController, videoGroupViewModel = videoGroupViewModel)
+                videoScreen(
+                    id = id,
+                    navController = navController,
+                    videoGroupViewModel = videoGroupViewModel
+                )
 //                videoScreen(id = id)
             }
         }

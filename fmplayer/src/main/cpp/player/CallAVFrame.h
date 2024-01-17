@@ -17,7 +17,7 @@ public:
     virtual bool onVideoPacket(int width, int height,int format, AVPacket *packet) = 0;
     virtual void onAudioFrame(AVFrame* avFrame, int channels, AVSampleFormat avSampleFormat, int dataSize) = 0;
     virtual void onProgress(int64_t time, int64_t currentTime) = 0;
-    virtual void onEnd() = 0;
+    virtual void onEnd(bool isError) = 0;
     virtual void release() = 0;
     virtual void onLoading() = 0;
 };

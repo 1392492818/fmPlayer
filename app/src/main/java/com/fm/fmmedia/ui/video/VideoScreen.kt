@@ -1,51 +1,40 @@
 package com.fm.fmmedia.ui.video
 
 import android.app.Activity
-import android.content.ContentResolver
 import android.content.Context
 import android.content.pm.ActivityInfo
 import android.media.AudioManager
 import android.os.Build
-import android.os.Handler
-import android.os.Looper
-import android.provider.Settings
 import android.util.Log
 import android.view.WindowManager
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.annotation.DrawableRes
 import androidx.annotation.RequiresApi
-import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.Call
-import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -65,9 +54,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.traceEventEnd
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -76,24 +65,28 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.navigation.NavHostController
 import com.fm.fmmedia.R
+import com.fm.fmmedia.api.response.VideoGroupResponse
 import com.fm.fmmedia.compose.FmGlView
 import com.fm.fmmedia.compose.LifecycleEffect
+import com.fm.fmmedia.compose.RequestError
+import com.fm.fmmedia.compose.SwipeRefresh
 import com.fm.fmmedia.compose.formatSecondsToHHMMSS
 import com.fm.fmmedia.compose.loading
-import com.fm.fmmedia.repository.VideoGroupRepository
-import com.fm.fmmedia.ui.Screen
+import com.fm.fmmedia.compose.videoItem
+import com.fm.fmmedia.ui.theme.FmMediaTheme
 import com.fm.fmmedia.viewmodel.VideoGroupViewModel
 import com.google.accompanist.systemuicontroller.SystemUiController
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 
 /**
@@ -134,15 +127,7 @@ fun control(
     val window = (context as? ComponentActivity)?.window
     window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
-    LifecycleEffect(onResume = {
-        isPlayer.value = true
-    }, onPause = {
-        isPlayer.value = false
-    }, onDestroy = {
-        Log.e("测试", "onDestroy")
-        fmGlView.value?.release()
-        isPlayer.value = false
-    })
+
     // 设置屏幕保持唤醒状态
 
     Row(
@@ -215,19 +200,10 @@ fun control(
                 fullHeight.value = Modifier.height(250.dp)
 
             }
-            onDispose {  }
+            onDispose { }
         }
 
-        DisposableEffect(isPlayer.value) {
-            if (isPlayer.value) {
-                playerImage.value = R.drawable.baseline_pause_24
-                fmGlView.value?.play()
-            } else {
-                playerImage.value = R.drawable.baseline_play_arrow_24
-                fmGlView.value?.pause()
-            }
-            onDispose { /* cleanup logic here */ }
-        }
+
     }
 
 }
@@ -274,8 +250,77 @@ fun setting(
                 .clip(RoundedCornerShape(2.dp)),
         )
     }
+}
 
-
+@Composable
+fun videoGroups(
+    videoGroupViewModel: VideoGroupViewModel,
+    categoryId: Int,
+    id: MutableState<Int>,
+    onItemClick: (id: Int) -> Unit
+) {
+    var isRefreshing by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
+    var isFinishing by remember {
+        mutableStateOf(false)
+    }
+    val scope = rememberCoroutineScope()
+    val videoGroupPage by videoGroupViewModel.videoGroupPage.observeAsState()
+    LaunchedEffect(Unit) {
+        videoGroupViewModel.getVideoGroup(search = "categoryId=$categoryId")
+    }
+    val configuration = LocalConfiguration.current
+    val density = LocalDensity.current
+    val screenWidth = configuration.screenWidthDp.dp
+    SwipeRefresh(
+        items = videoGroupPage?.getData<List<VideoGroupResponse>>()?.filter { it.id != id.value },
+        refreshing = isRefreshing,
+        loading = isLoading,
+        finishing = isFinishing,
+        columns = GridCells.Fixed(2),
+        onRefresh = {
+            isRefreshing = true
+            isFinishing = false
+            scope.launch {
+                delay(1000)
+                videoGroupViewModel.getVideoGroup(search = "categoryId=$categoryId")
+                isRefreshing = false
+            }
+        },
+        onLoad = {
+            scope.launch {
+                delay(1000)
+                if (videoGroupPage?.hasNextPage == false) {
+                    isFinishing = true
+                } else {
+                    val pageNum = videoGroupPage?.nextPage
+                    val pageSize = videoGroupPage?.pageSize
+                    if (pageNum != null && pageSize != null) {
+                        videoGroupViewModel.getVideoGroup(
+                            pageNum = pageNum,
+                            pageSize = pageSize,
+                            isNext = true,
+                            search = "categoryId=$categoryId"
+                        )
+                    }
+                }
+            }
+        }) { index, videoGroup ->
+        val num: Dp = (index % 2 * 40).dp
+        Row {
+            videoItem(
+                modifier = Modifier
+                    .height(250.dp)
+                    .width(screenWidth / 2)
+                    .padding(10.dp)
+                    .clickable {
+                        onItemClick(videoGroup.id)
+                    },
+                name = videoGroup.name,
+                imageUrl = "https://img0.baidu.com/it/u=428280756,4053559961&fm=253&fmt=auto&app=138&f=JPEG?w=800&h=500"
+            )
+        }
+    }
 }
 
 
@@ -289,8 +334,11 @@ fun videoScreen(
 ) {
     Log.e("测试", "videoScreen")
     val videoGroup by videoGroupViewModel.videoGroup.observeAsState()
+    val videGroupId = rememberSaveable {
+        mutableIntStateOf(id)
+    }
     LaunchedEffect(Unit) {
-        videoGroupViewModel.findIdGroup(id)
+        videoGroupViewModel.findIdGroup(videGroupId.value)
     }
 
 
@@ -298,7 +346,7 @@ fun videoScreen(
     val height = remember { mutableStateOf(0) }
     val playerImage: MutableState<Int> =
         remember { mutableStateOf(R.drawable.baseline_pause_24) }
-    val isPlayer = remember { mutableStateOf(true) }
+    val isPlayer = rememberSaveable { mutableStateOf(true) }
 
     var progress = remember {
         mutableFloatStateOf(0f)
@@ -306,7 +354,7 @@ fun videoScreen(
     var position = rememberSaveable {
         mutableFloatStateOf(0f)
     }
-    var fmGlView:MutableState<FmGlView?> = remember {
+    var fmGlView: MutableState<FmGlView?> = remember {
         mutableStateOf(null)
     };
     var isSeek = remember {
@@ -335,8 +383,6 @@ fun videoScreen(
     }
 
 
-
-
     var brightness by remember {
         mutableFloatStateOf(125f)
     }
@@ -357,9 +403,9 @@ fun videoScreen(
 
     val volumeMax = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
     val volumeMin = audioManager.getStreamMinVolume(AudioManager.STREAM_MUSIC)
-    val volumeMinProgress:Float = 0f
-    val volumeMaxProgress:Float = 100f
-    var volume:Float by remember {
+    val volumeMinProgress: Float = 0f
+    val volumeMaxProgress: Float = 100f
+    var volume: Float by remember {
         mutableFloatStateOf(audioManager.getStreamVolume(AudioManager.STREAM_MUSIC) / (volumeMax - volumeMin) * volumeMaxProgress)
     }
     var isShowControl by remember {
@@ -374,6 +420,11 @@ fun videoScreen(
     var isVideoLoading by remember {
         mutableStateOf(true)
     }
+
+    var isError by remember {
+        mutableStateOf(false)
+    }
+    val isRequestError by videoGroupViewModel.isRequestError.observeAsState()
     LaunchedEffect(Unit) {
         while (true) {
             delay(5000)
@@ -383,11 +434,23 @@ fun videoScreen(
                 isShowProgress = false
                 isShowControl = false
             }
-
         }
     }
 
-    if (videoGroup != null && videoGroup?.id == id) {
+    LifecycleEffect(onResume = {
+        isPlayer.value = true
+    }, onPause = {
+        isPlayer.value = false
+        Log.e("测试", "onPause")
+    }, onDestroy = {
+        Log.e("测试", "onDestroy")
+        fmGlView.value?.release()
+        isPlayer.value = false
+    })
+
+    if (videoGroup != null
+//        && videoGroup?.id == id
+    ) {
         Scaffold { innerPadding ->
             Column(modifier = Modifier.padding(innerPadding)) {
                 Box(
@@ -494,17 +557,22 @@ fun videoScreen(
                                         position.value = currentPosition.toFloat()
                                     progress.value = duration.toFloat()
                                 },
-                                endCallback = {
-                                    if (selectIndex + 1 != videoGroup?.video?.size) {
-                                        selectIndex += 1
+                                endCallback = { error ->
+                                    if (error) {
+                                        isError = true
+                                        isVideoLoading = false
+                                    } else {
+                                        isVideoLoading = true
+                                        if (selectIndex + 1 != videoGroup?.video?.size) {
+                                            selectIndex += 1
 
-                                        val source = videoGroup?.video?.get(selectIndex)
-                                        source?.let {
-                                            fmGlView.value?.reset(source = it.source)
-                                            selectSource = it.source
-                                            isPlayer.value = true
+                                            val source = videoGroup?.video?.get(selectIndex)
+                                            source?.let {
+                                                fmGlView.value?.reset(source = it.source)
+                                                selectSource = it.source
+                                                isPlayer.value = true
+                                            }
                                         }
-
                                     }
                                 }, onLoading = {
                                     isVideoLoading = true
@@ -518,12 +586,12 @@ fun videoScreen(
                             }, update = { it ->
                             fmGlView.value = it
                         }, onRelease = {
-                           it.release()
+                            it.release()
                         }
                         )
                     }
 
-                    if(isShowControl) {
+                    if (isShowControl) {
                         Icon(
                             imageVector = Icons.Outlined.ArrowBack,
                             tint = Color.White,
@@ -566,18 +634,49 @@ fun videoScreen(
                             )
                         )
                     }
-
-                    if(isVideoLoading){
-                        loading(color = R.color.white)
+                    DisposableEffect(isPlayer.value) {
+                        if (isPlayer.value) {
+                            playerImage.value = R.drawable.baseline_pause_24
+                            fmGlView.value?.play()
+                        } else {
+                            playerImage.value = R.drawable.baseline_play_arrow_24
+                            fmGlView.value?.pause()
+                        }
+                        onDispose { /* cleanup logic here */ }
                     }
 
+                    DisposableEffect(videoGroup) {
+                        fmGlView.value?.reset(videoGroup!!.video[0].source)
+                        onDispose { }
+                    }
+
+
+                    if (isVideoLoading) {
+                        loading(color = R.color.white)
+                    }
+                    if (isError) {
+                        RequestError(modifier = Modifier
+                            .clickable {
+                                val source = videoGroup?.video?.get(selectIndex)
+                                source?.let {
+                                    fmGlView.value?.reset(
+                                        source = it.source,
+                                        position.value.toLong()
+                                    )
+                                }
+                                isVideoLoading = true
+                                isError = false
+                            }
+                            .fillMaxHeight()
+                            .fillMaxWidth(), color = Color.White)
+                    }
                 }
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
                         .background(Color.White)
-                        .verticalScroll(rememberScrollState())
+//                        .verticalScroll(rememberScrollState())
                 ) {
                     videoGroup?.name?.let {
                         Text(
@@ -603,7 +702,7 @@ fun videoScreen(
                                             .fillMaxHeight()
                                             .background(Color.Black)
                                             .clickable {
-                                                if(selectIndex != index) {
+                                                if (selectIndex != index) {
                                                     fmGlView.value?.reset(it.source)
                                                     selectSource = it.source
                                                     selectIndex = index
@@ -624,28 +723,61 @@ fun videoScreen(
                             }
                         }
                     }
-
-
-
-                    repeat(100) {
-                        Text("Item $it", modifier = Modifier.padding(2.dp))
+                    Divider()
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(5.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = stringResource(id = R.string.play_recommend),
+                                style = MaterialTheme.typography.h6,
+                                color = FmMediaTheme.colors.brand,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .wrapContentWidth(Alignment.Start)
+                            )
+                        }
+                    }
+                    Box(modifier = Modifier.weight(1f)) {
+                        if (videoGroup?.categoryId!! > 0) {
+                            videoGroups(
+                                videoGroupViewModel = videoGroupViewModel,
+                                categoryId = videoGroup!!.categoryId,
+                                id = videGroupId,
+                                onItemClick = { id ->
+                                    videoGroupViewModel.findIdGroup(id)
+                                    videGroupId.value = id
+                                    selectIndex = 0
+                                }
+                            )
+                        }
                     }
 
                 }
-
             }
-
         }
     } else {
-        loading()
+        if (isRequestError == false)
+            loading()
+        else
+            RequestError(modifier = Modifier
+                .clickable { videoGroupViewModel.findIdGroup(id) }
+                .fillMaxHeight()
+                .fillMaxWidth())
     }
     BackHandler(enabled = true) {
         Log.e("back", "返回")
-        if(isFull.value) {
+        if (isFull.value) {
             isFull.value = false
         } else {
             navController.popBackStack()
         }
-
     }
 }

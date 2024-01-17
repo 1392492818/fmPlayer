@@ -5,6 +5,6 @@ public interface PlayerCallback {
     public void softwareDecoder();
     public void voidInfo(int width, int height);
     public void progress(long currentTime, long videoTime, boolean isSeekSuccess);
-    public void end();
+    public void end(Boolean isError);
     public void loading();
 }

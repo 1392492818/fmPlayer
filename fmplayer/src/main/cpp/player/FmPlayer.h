@@ -33,6 +33,7 @@ namespace fm {
 
     class FmPlayer {
     private:
+        bool isError = false;
         CallAVFrame *callAvFrame = nullptr;
         AVFilterGraph *graph = nullptr;
         AVFilterContext *src = nullptr, *sink = nullptr;

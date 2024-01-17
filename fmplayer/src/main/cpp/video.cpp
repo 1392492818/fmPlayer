@@ -69,7 +69,6 @@ Java_com_fm_fmplayer_FmPlayer_startPlayer(JNIEnv *env, jobject clazz,
 
         playerHashMap[idString] = playerStruct;
         LOGE("插入id %s %d", idString.data(), playerHashMap.size());
-
     }
     fmPlayer->setCallAvFrame(videoPlayer);
     fmPlayer->startPlayer(urlString, time);
@@ -226,7 +225,6 @@ Java_com_fm_fmplayer_FmPlayer_pause(JNIEnv *env, jobject thiz, jstring id) {
         } else {
             LOGE("找不到 %s %d", idString.data(), playerHashMap.size());
         }
-
     }
 }
 

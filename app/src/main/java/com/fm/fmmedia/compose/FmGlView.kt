@@ -67,14 +67,14 @@ fun formatSecondsToHHMMSS(seconds: Long): String {
 
 @RequiresApi(Build.VERSION_CODES.Q)
 @SuppressLint("ViewConstructor")
-class FmGlView(context: Context, url:String, seekTime:Long,progress:(currentPosition:Long, duration:Long, isSeek:Boolean)->Unit, endCallback:()->Unit = {}, onLoading: ()->Unit) : GLSurfaceView(context),PlayerCallback {
+class FmGlView(context: Context, url:String, seekTime:Long,progress:(currentPosition:Long, duration:Long, isSeek:Boolean)->Unit, endCallback:(isError:Boolean)->Unit = {}, onLoading: ()->Unit) : GLSurfaceView(context),PlayerCallback {
     private lateinit var videoRenderOES: VideoRenderOES;
     private lateinit var surface: Surface;
     private val TAG:String = FmGlView::class.simpleName.toString();
     private var  fmPlayer:FmPlayer = FmPlayer();
-    private val baseUrl = "http://192.168.31.163:9090/videos/"
+    private val baseUrl = "http://192.168.0.148:9090/videos/"
     var callback: (currentPosition:Long, duration:Long, isSeek: Boolean)->Unit;
-    var endCallback: ()->Unit;
+    var endCallback: (isError:Boolean)->Unit;
     var onLoading: ()->Unit;
     var seekTime:Long
     init {
@@ -98,11 +98,16 @@ class FmGlView(context: Context, url:String, seekTime:Long,progress:(currentPosi
 //        fmPlayer.seek(seekTime)
     }
 
-    fun reset(source: String){
-        seekTime = 0
-        fmPlayer.release()
-        fmPlayer = FmPlayer()
-        startPlayer(baseUrl+source)
+    fun reset(source: String, seekTime: Long = 0){
+        try{
+            this.seekTime = seekTime
+            fmPlayer.release()
+            fmPlayer = FmPlayer()
+            startPlayer(baseUrl+source)
+        }catch (e:Exception){
+
+        }
+
     }
 
     fun release(){
@@ -128,7 +133,6 @@ class FmGlView(context: Context, url:String, seekTime:Long,progress:(currentPosi
     }
 
     override fun loading() {
-        Log.e("测试", "数据加载中")
         this.onLoading()
     }
 
@@ -140,7 +144,7 @@ class FmGlView(context: Context, url:String, seekTime:Long,progress:(currentPosi
         this.callback(currentTime, duration, isSeek);
     }
 
-    override fun end() {
-        this.endCallback()
+    override fun end(isError: Boolean) {
+        this.endCallback(isError)
     }
 }

@@ -5,7 +5,7 @@ public interface FmPlayerDataCallback {
     public void onAudioFrame(byte[] audioData,int sampleRate,int nbSamples, int channels, int avSampleFormat, int dataSize);
     public void onProgress(long time, long currentTime);
     public boolean onVideoPacket(int width, int height,int format, byte[] packet);
-    public void onEnd();
+    public void onEnd(boolean isError);
 
     public void onLoading();
 }

@@ -20,11 +20,12 @@ public:
 
     virtual void onProgress(int64_t time, int64_t currentTime);
 
-    virtual void onEnd();
+    virtual void onEnd(bool isError);
 
     virtual void release();
 
     virtual void onLoading();
+
 
     bool onVideoPacket(int width,int height,int format, AVPacket *packet) override;
 

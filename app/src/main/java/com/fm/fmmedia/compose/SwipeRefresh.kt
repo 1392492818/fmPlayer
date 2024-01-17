@@ -17,13 +17,17 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyItemScope
-import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridItemScope
+import androidx.compose.foundation.lazy.grid.LazyGridState
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -72,7 +76,7 @@ import kotlin.math.pow
  * @param onLoad     加载更多回调
  */
 @Composable
-fun <T> SwipeRefresh(
+fun <T : Any> SwipeRefresh(
     items: List<T>?,
     refreshing: Boolean,
     loading: Boolean,
@@ -80,12 +84,13 @@ fun <T> SwipeRefresh(
     onRefresh: () -> Unit,
     onLoad: () -> Unit,
     modifier: Modifier = Modifier,
-    listState: LazyListState = rememberLazyListState(),
+    listState: LazyGridState = rememberLazyGridState(),
     contentPadding: PaddingValues = PaddingValues(0.dp),
     verticalArrangement: Arrangement.Vertical = Arrangement.Top,
     key: ((index: Int, item: T) -> Any)? = null,
     contentType: (index: Int, item: T) -> Any? = { _, _ -> null },
-    itemContent: @Composable LazyItemScope.(index: Int, item: T) -> Unit
+    columns: GridCells = GridCells.Fixed(1),
+    itemContent: @Composable LazyGridItemScope.(index: Int, item: T) -> Unit
 ) {
     val listLayoutInfo by remember { derivedStateOf { listState.layoutInfo } }
 
@@ -102,10 +107,12 @@ fun <T> SwipeRefresh(
             }
         } else {
             Row(modifier.fillMaxSize()) { //没有数据时候界面
-                videoItem( modifier = Modifier
-                    .fillMaxSize(),
+                videoItem(
+                    modifier = Modifier
+                        .fillMaxSize(),
                     name = "",
-                    imageUrl = R.drawable.not_data)
+                    imageUrl = R.drawable.not_data
+                )
             }
         }
     } else {
@@ -124,7 +131,8 @@ fun <T> SwipeRefresh(
             Box(
                 modifier = Modifier.background(colorResource(R.color.white))
             ) {
-                LazyColumn(
+                LazyVerticalGrid(
+                    columns =  columns,
                     modifier = modifier,
                     state = listState,
                     contentPadding = contentPadding,
@@ -140,10 +148,44 @@ fun <T> SwipeRefresh(
                             LaunchedEffect(items.size) { onLoad() }
                         }
                     }
-                    item { MoreIndicator(finishing) }
+//                    item {
+//                        Box(
+//                            modifier = Modifier
+//                                .fillMaxWidth()
+//                                .padding(16.dp),
+//                            contentAlignment = Alignment.Center
+//                        ){
+//                            MoreIndicator(finishing)
+//                        }
+//
+//                    }
 
+                    item(span = {
+                        // this上下文为LazyGridItemSpanScope
+                        GridItemSpan(this.maxLineSpan)
+                    }) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center
+                        ){
+                            MoreIndicator(finishing)
+                        }
+                    }
                 }
             }
+
+//            Box(
+//                modifier = Modifier
+//                    .fillMaxWidth()
+//                    .padding(16.dp),
+//                contentAlignment = Alignment.BottomEnd
+//            ){
+//                MoreIndicator(finishing)
+//            }
+
+
 
             // 上次是否正在滑动
             var lastTimeIsScrollInProgress by remember {

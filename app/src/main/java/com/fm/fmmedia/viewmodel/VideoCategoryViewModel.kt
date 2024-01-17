@@ -13,12 +13,12 @@ import com.fm.fmmedia.repository.VideoGroupRepository
 import com.fm.fmmedia.repository.WordRepository
 import kotlinx.coroutines.launch
 
-class VideoCategoryViewModel(val repository: VideoCategoryRepository) : ViewModel() {
+class VideoCategoryViewModel(val repository: VideoCategoryRepository) : BaseVideoModel(repository) {
     val videoCategoryPage: LiveData<Page?> = repository.page.asLiveData()
 
     fun getVideoCategory(
         pageNum: Int = 1,
-        pageSize: Int = 5,
+        pageSize: Int = 20,
         search: String = "",
         sort: String = "",
         isNext: Boolean = false

@@ -10,6 +10,7 @@
 #include <vector>
 #include <queue>
 #include "StreamFilter.h"
+#include "../util.h"
 
 namespace fm {
 
@@ -69,6 +70,11 @@ namespace fm {
 
     private:
         bool isEnd = true;
+        bool isError = false;
+    public:
+        bool isError1() const;
+
+        void setIsError(bool isError);
     };
 
     class AvFrameInfo {
@@ -79,6 +85,12 @@ namespace fm {
 
     private:
         bool isEnd = true;
+        bool isError = false;
+    public:
+        bool isError1() const;
+
+        void setIsError(bool isError);
+
     public:
         bool isEnd1() const;
 
@@ -110,6 +122,7 @@ namespace fm {
 
     public:
         void setIsAnnexb(bool isAnnexb);
+        int64_t getPbBufferSize();
 // 是否将数据转换成 h264格式
 
     public:

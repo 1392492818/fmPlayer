@@ -6,6 +6,14 @@
 
 namespace fm {
 
+    // 进度回调函数
+    static int progress_callback(void* opaque, int64_t dltotal, int64_t dlnow, int64_t ultotal, int64_t ulnow) {
+        // 在这里处理进度信息
+        // dltotal：总字节数，dlnow：已下载字节数，ultotal：总上传字节数，ulnow：已上传字节数
+        // 可以通过这些信息计算下载进度或上传进度
+        return 0;
+    }
+
     /*********************************** FFmpeg获取GPU硬件解码帧格式的回调函数 *****************************************/
     static enum AVPixelFormat g_pixelFormat;
 
@@ -147,8 +155,9 @@ namespace fm {
         if (!packet) {
             return avPacketData;
         }
+        int ret = 0;
         // 读取帧并解码
-        if (av_read_frame(formatContext, packet) >= 0) {
+        if ((ret = av_read_frame(formatContext, packet)) >= 0) {
             avPacketData.setIsEnd(false);
 
             for (StreamInfo *streamInfo: streamInfos) {
@@ -163,6 +172,9 @@ namespace fm {
                     avPacketQueue.push(packet);
                 }
             }
+        }
+        if(ret < 0 && ret != AVERROR_EOF){
+            avPacketData.setIsError(true);
         }
         avPacketData.setAvPacketQueue(avPacketQueue);
         return avPacketData;
@@ -221,7 +233,6 @@ namespace fm {
             return false;
         }
 
-
         //获取流信息
         findStreamInfo();
         // 存储流信息
@@ -235,6 +246,9 @@ namespace fm {
         // 打开解码器
         openDecoder();
         seek(time *AV_TIME_BASE);
+//        av_opt_set(formatContext, "progress_callback",
+//                   reinterpret_cast<const char *>(progress_callback), 0);
+
         return true;
     }
 
@@ -381,8 +395,12 @@ namespace fm {
         return frame;
     }
 
-
-
+    int64_t VideoDecoder::getPbBufferSize() {
+        if(formatContext != nullptr) {
+           return formatContext->pb->bytes_read;
+        }
+        return 0;
+    }
 
 
     AvFrameInfo::AvFrameInfo(const std::queue<AVFrame> &avFrameQueue, AVMediaType mediaType)
@@ -412,6 +430,14 @@ namespace fm {
 
     void AvFrameInfo::setMediaType(AVMediaType mediaType) {
         AvFrameInfo::mediaType = mediaType;
+    }
+
+    bool AvFrameInfo::isError1() const {
+        return isError;
+    }
+
+    void AvFrameInfo::setIsError(bool isError) {
+        AvFrameInfo::isError = isError;
     }
 
     const std::queue<AVPacket *> &AVPacketData::getAvPacketQueue() const {
@@ -470,6 +496,14 @@ namespace fm {
 
     void AVPacketData::setAvStream(AVStream *avStream) {
         AVPacketData::avStream = avStream;
+    }
+
+    bool AVPacketData::isError1() const {
+        return isError;
+    }
+
+    void AVPacketData::setIsError(bool isError) {
+        AVPacketData::isError = isError;
     }
 
 

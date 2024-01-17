@@ -208,9 +208,11 @@ public class FmPlayer implements FmPlayerDataCallback {
     }
 
     @Override
-    public void onEnd() {
-        playerCallback.end();
+    public void onEnd(boolean isError) {
+        playerCallback.end(isError);
     }
+
+
 
     @Override
     public void onLoading() {

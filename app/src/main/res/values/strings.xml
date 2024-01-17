@@ -42,4 +42,7 @@
 
 <!--    播放模块-->
     <string name="play_play_icon_text">播放</string>
+    <string name="play_recommend">相关推荐</string>
+
+    <string name="request_error">请求失败，点击重试</string>
 </resources>
