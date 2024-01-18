@@ -251,3 +251,25 @@ Java_com_fm_fmplayer_FmPlayer_seek(JNIEnv *env, jobject thiz, jstring id, jlong 
 
     }
 }
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_fm_fmplayer_FmPlayer_setSpeed(JNIEnv *env, jobject thiz,jstring id, jfloat speed) {
+    // TODO: implement setSpeed()
+    FmPlayerStruct *fmPlayerStruct = nullptr;
+    {
+        std::lock_guard<std::mutex> lockGuard(player);
+
+        const char *nativeString = env->GetStringUTFChars(id, nullptr);
+        // 将 const char* 转换为 std::string
+        std::string idString(nativeString);
+        // 释放 jstring 获取的字符串
+        env->ReleaseStringUTFChars(id, nativeString);
+        if (playerHashMap.find(idString) != playerHashMap.end()) {
+            fmPlayerStruct = &playerHashMap[idString];
+            fmPlayerStruct->fmPlayer->updateSpeedAudio(speed);
+            LOGE("找到 %s", idString.data());
+        } else {
+            LOGE("找不到 %s %d", idString.data(), playerHashMap.size());
+        }
+    }
+}

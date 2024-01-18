@@ -43,7 +43,7 @@ interface ApiRequest {
 
 
     companion object {
-        private const val BASE_URL = "http://192.168.0.148:8080/api/"
+        private const val BASE_URL = "http://192.168.0.149:8080/api/"
 
         fun create(): ApiRequest {
             val logger = HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BASIC }

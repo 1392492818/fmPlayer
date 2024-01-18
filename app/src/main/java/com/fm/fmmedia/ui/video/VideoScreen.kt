@@ -1,6 +1,7 @@
 package com.fm.fmmedia.ui.video
 
 import android.app.Activity
+import android.content.ClipData.Item
 import android.content.Context
 import android.content.pm.ActivityInfo
 import android.media.AudioManager
@@ -17,6 +18,7 @@ import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -26,6 +28,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -44,9 +47,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableDoubleState
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -82,6 +87,7 @@ import com.fm.fmmedia.compose.formatSecondsToHHMMSS
 import com.fm.fmmedia.compose.loading
 import com.fm.fmmedia.compose.videoItem
 import com.fm.fmmedia.ui.theme.FmMediaTheme
+import com.fm.fmmedia.util.generateListWithStep
 import com.fm.fmmedia.viewmodel.VideoGroupViewModel
 import com.google.accompanist.systemuicontroller.SystemUiController
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
@@ -121,6 +127,8 @@ fun control(
     isSeek: MutableState<Boolean>,
     isFull: MutableState<Boolean>,
     fullHeight: MutableState<Modifier>,
+    isShowSpeed: MutableState<Boolean>,
+    videoSpeed: MutableState<Double>,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -167,6 +175,18 @@ fun control(
         )
 
         Text(text = formatSecondsToHHMMSS(progress.value.toLong()), color = Color.White)
+        if (isFull.value) {
+            Text(
+                text = "${videoSpeed.value.toString()}X",
+                color = Color.White,
+                modifier = Modifier
+                    .padding(8.dp, 0.dp, 8.dp, 0.dp)
+                    .clickable {
+//                        fmGlView.value?.setSpeed(5f)
+                        isShowSpeed.value = !isShowSpeed.value
+                    }
+            )
+        }
         Icon(
             imageVector = ImageVector.vectorResource(R.drawable.baseline_fullscreen_24),
             tint = Color.White,
@@ -198,14 +218,71 @@ fun control(
                 (context as? ComponentActivity)?.requestedOrientation =
                     ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
                 fullHeight.value = Modifier.height(250.dp)
-
             }
             onDispose { }
         }
 
-
     }
 
+}
+
+@RequiresApi(Build.VERSION_CODES.Q)
+@Composable
+fun Speed(
+    modifier: Modifier = Modifier,
+    select: MutableState<Double>,
+    fmGlView: MutableState<FmGlView?>,
+) {
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        Column(
+            modifier = Modifier
+                .wrapContentHeight()
+                .padding(10.dp)
+                .fillMaxWidth()
+        ) {
+            Text(text = stringResource(id = R.string.play_audio_speed), color = Color.White)
+            LazyRow {
+                itemsIndexed(items = generateListWithStep(0.5)) { index, item ->
+                    Box(
+                        modifier = Modifier
+                            .width(50.dp)
+                            .height(50.dp)
+                            .padding(4.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .fillMaxHeight()
+                                .background(
+                                    color = Color.Gray.copy(alpha = 0.5f),
+                                    shape = RoundedCornerShape(5.dp)
+                                )
+                                .clickable {
+                                    Log.e("测试", "点击了" + item)
+                                    select.value = item
+                                    fmGlView.value?.setSpeed(select.value.toFloat())
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(text = item.toString(), color = Color.White)
+                            if (select.value == item) {
+                                Box(
+                                    modifier = Modifier
+                                        .height(2.dp)
+                                        .align(Alignment.BottomEnd)
+                                        .fillMaxWidth()
+
+                                        .background(
+                                            color = Color.Black, shape = RoundedCornerShape(5.dp)
+                                        )
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 /**
@@ -424,6 +501,9 @@ fun videoScreen(
     var isError by remember {
         mutableStateOf(false)
     }
+    val isShowSpeed = rememberSaveable {
+        mutableStateOf(false)
+    }
     val isRequestError by videoGroupViewModel.isRequestError.observeAsState()
     LaunchedEffect(Unit) {
         while (true) {
@@ -431,11 +511,16 @@ fun videoScreen(
             if (isToucher) {
                 isToucher = false
             } else {
+                isShowSpeed.value = false
                 isShowProgress = false
                 isShowControl = false
             }
         }
     }
+    val videoSpeed = rememberSaveable {
+        mutableDoubleStateOf(1.0)
+    }
+
 
     LifecycleEffect(onResume = {
         isPlayer.value = true
@@ -568,7 +653,10 @@ fun videoScreen(
 
                                             val source = videoGroup?.video?.get(selectIndex)
                                             source?.let {
-                                                fmGlView.value?.reset(source = it.source)
+                                                fmGlView.value?.reset(
+                                                    source = it.source,
+//                                                    seekTime = position.value.toLong()
+                                                )
                                                 selectSource = it.source
                                                 isPlayer.value = true
                                             }
@@ -588,6 +676,16 @@ fun videoScreen(
                         }, onRelease = {
                             it.release()
                         }
+                        )
+                    }
+                    if (isShowSpeed.value && isShowControl) {
+                        Speed(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .fillMaxHeight()
+                                .align(Alignment.Center),
+                            select = videoSpeed,
+                            fmGlView = fmGlView
                         )
                     }
 
@@ -629,6 +727,8 @@ fun videoScreen(
                             progress = progress,
                             isFull = isFull,
                             fullHeight = modifier,
+                            isShowSpeed = isShowSpeed,
+                            videoSpeed = videoSpeed,
                             modifier = Modifier.align(
                                 Alignment.BottomCenter
                             )
@@ -646,7 +746,10 @@ fun videoScreen(
                     }
 
                     DisposableEffect(videoGroup) {
-                        fmGlView.value?.reset(videoGroup!!.video[0].source)
+                        fmGlView.value?.reset(
+                            videoGroup!!.video[0].source,
+                            seekTime = position.value.toLong()
+                        )
                         onDispose { }
                     }
 
@@ -703,7 +806,10 @@ fun videoScreen(
                                             .background(Color.Black)
                                             .clickable {
                                                 if (selectIndex != index) {
-                                                    fmGlView.value?.reset(it.source)
+                                                    fmGlView.value?.reset(
+                                                        it.source,
+                                                        seekTime = position.value.toLong()
+                                                    )
                                                     selectSource = it.source
                                                     selectIndex = index
                                                     isPlayer.value = true
@@ -713,9 +819,9 @@ fun videoScreen(
                                         contentAlignment = Alignment.Center
                                     ) {
                                         if (selectSource == it.source) {
-                                            Text(text = it.order.toString(), color = Color.Red)
-                                        } else {
                                             Text(text = it.order.toString(), color = Color.White)
+                                        } else {
+                                            Text(text = it.order.toString(), color = Color.Gray)
                                         }
 
                                     }
@@ -752,6 +858,7 @@ fun videoScreen(
                                 categoryId = videoGroup!!.categoryId,
                                 id = videGroupId,
                                 onItemClick = { id ->
+                                    position.value = 0f
                                     videoGroupViewModel.findIdGroup(id)
                                     videGroupId.value = id
                                     selectIndex = 0

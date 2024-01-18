@@ -72,7 +72,7 @@ class FmGlView(context: Context, url:String, seekTime:Long,progress:(currentPosi
     private lateinit var surface: Surface;
     private val TAG:String = FmGlView::class.simpleName.toString();
     private var  fmPlayer:FmPlayer = FmPlayer();
-    private val baseUrl = "http://192.168.0.148:9090/videos/"
+    private val baseUrl = "http://192.168.0.149:9090/videos/"
     var callback: (currentPosition:Long, duration:Long, isSeek: Boolean)->Unit;
     var endCallback: (isError:Boolean)->Unit;
     var onLoading: ()->Unit;
@@ -124,6 +124,10 @@ class FmGlView(context: Context, url:String, seekTime:Long,progress:(currentPosi
 
     fun seek(time:Long) {
         fmPlayer.seek(time)
+    }
+
+    fun setSpeed(speed: Float){
+        fmPlayer.setSpeed(speed)
     }
 
     override fun stopLoading() {

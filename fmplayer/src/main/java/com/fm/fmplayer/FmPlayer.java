@@ -34,6 +34,8 @@ public class FmPlayer implements FmPlayerDataCallback {
 
     public native void pause(String id);
 
+    public native void setSpeed(String id, float speed);
+
     private boolean isSeek = false;
 
     public native void seek(String id, long time);
@@ -61,6 +63,20 @@ public class FmPlayer implements FmPlayerDataCallback {
                 @Override
                 public void run() {
                     play(id);
+                }
+            });
+        } catch (Exception e) {
+            Log.e(TAG, e.getMessage());
+        }
+    }
+
+    public void setSpeed(float speed){
+        try {
+            if (executorService.isShutdown()) return;
+            executorService.submit(new Runnable() {
+                @Override
+                public void run() {
+                    setSpeed(id,speed);
                 }
             });
         } catch (Exception e) {
