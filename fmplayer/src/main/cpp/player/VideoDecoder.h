@@ -10,6 +10,7 @@
 #include <vector>
 #include <queue>
 #include "StreamFilter.h"
+#include "VideoCache.h"
 #include "../util.h"
 
 namespace fm {
@@ -17,10 +18,10 @@ namespace fm {
     // 流 avPacket 信息
     class AVPacketData {
     private:
-        std::queue<AVPacket*> avPacketQueue;
+        std::queue<AVPacket *> avPacketQueue;
         enum AVCodecID avCodecId;
-        AVCodecContext* avCodecContext;
-        AVStream* avStream;
+        AVCodecContext *avCodecContext;
+        AVStream *avStream;
     public:
         AVStream *getAvStream() const;
 
@@ -60,9 +61,9 @@ namespace fm {
     public:
 
 
-        const std::queue<AVPacket*> &getAvPacketQueue() const;
+        const std::queue<AVPacket *> &getAvPacketQueue() const;
 
-        void setAvPacketQueue(const std::queue<AVPacket*> &avPacketQueue);
+        void setAvPacketQueue(const std::queue<AVPacket *> &avPacketQueue);
 
         bool isEnd1() const;
 
@@ -119,22 +120,36 @@ namespace fm {
         enum AVHWDeviceType hwType = AV_HWDEVICE_TYPE_NONE;
         const char *input;
         bool isHardware;
+        bool isError = false;
+        bool isRelease = false;
+        bool isEnd = false;
+        bool isExit = false;
+        VideoCache *videoCache;
+        mutex cacheMutex;
+        mutex cacheEmptyMutex;
+        std::condition_variable packetQueueEmptyCondition;
+        std::thread cacheThread;
 
     public:
         void setIsAnnexb(bool isAnnexb);
+
         int64_t getPbBufferSize();
 // 是否将数据转换成 h264格式
 
     public:
         bool isPrepare1() const;
-        bool init(long time = 0);
+
+        bool init(long time = 0, string cache = "");
 
     public:
         bool isHardDecoder1() const;
+
     public:
         VideoDecoder(const char *input, bool isOpenHardware);
 
         ~VideoDecoder();
+
+        void cacheVideo();
 
         void findStreamInfo();
 
@@ -145,9 +160,13 @@ namespace fm {
         void hardwareDecoder();
 
         void openDecoder();
+
         void seek(int64_t);
+
         AvFrameInfo readFrame();
+
         AVFrame *readVideoFrame(int64_t &duration, int width = 100, int height = 60);
+
         AVPacketData readPacket();
 
         std::vector<StreamInfo *> streamInfos;

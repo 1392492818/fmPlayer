@@ -1,0 +1,6 @@
+AUX_SOURCE_DIRECTORY(. JSON_CPP_SRC)
+SET(JSON_CPP_NAME "jsoncpp")
+include_directories(include)
+file(GLOB SOURCES *.cpp)
+
+ADD_LIBRARY(${JSON_CPP_NAME} SHARED ${SOURCES})

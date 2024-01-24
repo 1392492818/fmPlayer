@@ -42,7 +42,7 @@ extern "C"
 JNIEXPORT void JNICALL
 Java_com_fm_fmplayer_FmPlayer_startPlayer(JNIEnv *env, jobject clazz,
                                                        jstring url, jobject callbackObj,
-                                                       jstring id, jlong time) {
+                                                       jstring id, jlong time, jstring cachePath) {
     // TODO: implement startPlayer()
     const char *urlString = env->GetStringUTFChars(url, JNI_FALSE);
 
@@ -71,7 +71,10 @@ Java_com_fm_fmplayer_FmPlayer_startPlayer(JNIEnv *env, jobject clazz,
         LOGE("插入id %s %d", idString.data(), playerHashMap.size());
     }
     fmPlayer->setCallAvFrame(videoPlayer);
-    fmPlayer->startPlayer(urlString, time);
+    const char *cstr = env->GetStringUTFChars(cachePath, nullptr);
+    std::string cacheString(cstr);
+    env->ReleaseStringUTFChars(cachePath, cstr);
+    fmPlayer->startPlayer(urlString, time, cacheString);
     fmPlayer->start();
     env->ReleaseStringUTFChars(url, urlString);
 

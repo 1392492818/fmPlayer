@@ -334,6 +334,7 @@ bool h264_decode_sps(BYTE * buf,unsigned int nLen,int &width,int &height,int &fp
 
 
 
+
 //UINT Ue(BYTE *pBuff, UINT nLen, UINT &nStartBit)
 //{
 //    //计算0bit的个数

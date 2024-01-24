@@ -69,7 +69,7 @@ namespace fm {
 
         int maxQueueSize = 100;
 
-        void startPlayer(const char *input, long time = 0);
+        void startPlayer(const char *input, long time = 0, string cache = "");
 
         std::unique_ptr<VideoDecoder> videoDecoder = nullptr;
 

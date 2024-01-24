@@ -450,6 +450,10 @@ fun videoScreen(
 
 
     val configuration = LocalConfiguration.current
+    val context = LocalContext.current
+
+    // 获取临时目录
+    val cacheDir = context.cacheDir.absolutePath
     val density = LocalDensity.current
     val screenWidth = with(density) { configuration.screenWidthDp.dp.toPx() }
     var tapOrientation: TapOrientation by remember {
@@ -633,6 +637,7 @@ fun videoScreen(
                                 context = context,
                                 url = videoGroup?.video!![selectIndex].source,
                                 seekTime = position.value.toLong(),
+                                cachePath = cacheDir,
                                 progress = { currentPosition, duration, isSeekSuccess ->
                                     isVideoLoading = false
                                     if (isSeekSuccess) {
@@ -643,16 +648,17 @@ fun videoScreen(
                                     progress.value = duration.toFloat()
                                 },
                                 endCallback = { error ->
+                                    fmGlView.value?.release()
                                     if (error) {
                                         isError = true
                                         isVideoLoading = false
                                     } else {
-                                        isVideoLoading = true
                                         if (selectIndex + 1 != videoGroup?.video?.size) {
                                             selectIndex += 1
-
+                                            isVideoLoading = true
                                             val source = videoGroup?.video?.get(selectIndex)
                                             source?.let {
+                                             //   fmGlView.value?.release()
                                                 fmGlView.value?.reset(
                                                     source = it.source,
 //                                                    seekTime = position.value.toLong()
@@ -678,7 +684,7 @@ fun videoScreen(
                         }
                         )
                     }
-                    if (isShowSpeed.value && isShowControl) {
+                    if (isShowSpeed.value && isShowControl && isFull.value) {
                         Speed(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -746,10 +752,12 @@ fun videoScreen(
                     }
 
                     DisposableEffect(videoGroup) {
+                        isSeek.value = false
                         fmGlView.value?.reset(
                             videoGroup!!.video[0].source,
                             seekTime = position.value.toLong()
                         )
+                        fmGlView.value?.setSpeed(videoSpeed.value.toFloat())
                         onDispose { }
                     }
 
@@ -858,7 +866,9 @@ fun videoScreen(
                                 categoryId = videoGroup!!.categoryId,
                                 id = videGroupId,
                                 onItemClick = { id ->
+                                    isVideoLoading = true
                                     position.value = 0f
+                                    isSeek.value = true
                                     videoGroupViewModel.findIdGroup(id)
                                     videGroupId.value = id
                                     selectIndex = 0

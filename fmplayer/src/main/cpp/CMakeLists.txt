@@ -5,7 +5,8 @@
 cmake_minimum_required(VERSION 3.4.1)
 set(CMAKE_CXX_STANDARD 20)
 add_definitions(-DFM_ANDROID)
-
+include_directories(jsoncpp/include)
+add_subdirectory(jsoncpp)
 # Creates and names a library, sets it as either STATIC
 # or SHARED, and provides the relative paths to its source code.
 # You can define multiple libraries, and CMake builds them for you.
@@ -85,6 +86,8 @@ add_library( # Sets the name of the library.
         player/StreamFilter.h
         player/MediaCodecDecoder.cpp
         player/MediaCodecDecoder.h
+        player/VideoCache.cpp
+        player/VideoCache.h
         encoder/FmEncoder.cpp
         encoder/FmEncoder.h
         )
@@ -121,4 +124,5 @@ target_link_libraries( # Specifies the target library.
         ${log-lib}
         jnigraphics
         android
+        jsoncpp
         )

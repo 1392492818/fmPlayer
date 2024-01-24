@@ -111,13 +111,13 @@ namespace fm {
     }
 
 
-    void FmPlayer::startPlayer(const char *input, long time) {
+    void FmPlayer::startPlayer(const char *input, long time,string cache) {
 //        qDebug() << input;
         this->input = input;
 //        std::thread([&]() {
         std::lock_guard<std::mutex> lockGuard(decoderMutex);
         this->videoDecoder = std::make_unique<VideoDecoder>(this->input.data(), false);
-        if (this->videoDecoder->init(time)) {
+        if (this->videoDecoder->init(time,cache)) {
             if (!this->videoDecoder->isPrepare1()) return;
             this->isRunning = true;
             this->isStop = false;
@@ -336,6 +336,8 @@ namespace fm {
                     if (ret < 0 && ret != AVERROR(EAGAIN)) {
                         std::cout << ret << std::endl;
                         fprintf(stderr, "Error sending packet to decoder\n");
+                        LOGE("Error sending packet to decoder");
+                        this->isError = true;
                         av_packet_free(&avPacket);
                         this->isRunning = false;
                         break;
@@ -353,7 +355,6 @@ namespace fm {
                             return this->audioFrameQueue.size() <= maxQueueSize;
                         });
                     }
-
                 }
                 av_packet_free(&avPacket);
                 if (this->audioPacketQueue.size() <= maxQueueSize) {

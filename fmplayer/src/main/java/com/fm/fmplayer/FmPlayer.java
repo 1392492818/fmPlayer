@@ -26,7 +26,7 @@ public class FmPlayer implements FmPlayerDataCallback {
     private final static String TAG = FmPlayer.class.getSimpleName();
     public String id;
 
-    public native void startPlayer(String url, FmPlayerDataCallback fmPlayerDataCallback, String id, long time);
+    public native void startPlayer(String url, FmPlayerDataCallback fmPlayerDataCallback, String id, long time,String cachePath);
 
     public native void stop(String id);
 
@@ -120,7 +120,7 @@ public class FmPlayer implements FmPlayerDataCallback {
     }
 
 
-    public void start(String url, Surface surface, FmGLSurfaceView fmGLSurfaceView, PlayerCallback playerCallback, long time) {
+    public void start(String url, Surface surface, FmGLSurfaceView fmGLSurfaceView, PlayerCallback playerCallback, long time, String cachePath) {
         Log.e(TAG, id);
         this.surface = surface;
         this.playerCallback = playerCallback;
@@ -128,7 +128,7 @@ public class FmPlayer implements FmPlayerDataCallback {
         executorService.submit(new Runnable() {
             @Override
             public void run() {
-                startPlayer(url, FmPlayer.this, id, time);
+                startPlayer(url, FmPlayer.this, id, time, cachePath + "/video_cache/" +Md5.encoder(url));
             }
         });
     }

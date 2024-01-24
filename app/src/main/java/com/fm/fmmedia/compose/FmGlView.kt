@@ -67,7 +67,7 @@ fun formatSecondsToHHMMSS(seconds: Long): String {
 
 @RequiresApi(Build.VERSION_CODES.Q)
 @SuppressLint("ViewConstructor")
-class FmGlView(context: Context, url:String, seekTime:Long,progress:(currentPosition:Long, duration:Long, isSeek:Boolean)->Unit, endCallback:(isError:Boolean)->Unit = {}, onLoading: ()->Unit) : GLSurfaceView(context),PlayerCallback {
+class FmGlView(context: Context, url:String, seekTime:Long,cachePath:String, progress:(currentPosition:Long, duration:Long, isSeek:Boolean)->Unit, endCallback:(isError:Boolean)->Unit = {}, onLoading: ()->Unit) : GLSurfaceView(context),PlayerCallback {
     private lateinit var videoRenderOES: VideoRenderOES;
     private lateinit var surface: Surface;
     private val TAG:String = FmGlView::class.simpleName.toString();
@@ -77,8 +77,10 @@ class FmGlView(context: Context, url:String, seekTime:Long,progress:(currentPosi
     var endCallback: (isError:Boolean)->Unit;
     var onLoading: ()->Unit;
     var seekTime:Long
+    var cachePath:String
     init {
         this.setEGLContextClientVersion(2)
+        this.cachePath = cachePath
         callback = progress;
         this.seekTime = seekTime
         this.endCallback = endCallback
@@ -93,7 +95,7 @@ class FmGlView(context: Context, url:String, seekTime:Long,progress:(currentPosi
     }
 
     fun startPlayer(source:String){
-        fmPlayer.start(source, this.surface, null, this, seekTime)
+        fmPlayer.start(source, this.surface, null, this, seekTime, this.cachePath)
         fmPlayer.play()
 //        fmPlayer.seek(seekTime)
     }
