@@ -18,7 +18,7 @@ public:
     virtual void
     onAudioFrame(AVFrame *avFrame, int channels, AVSampleFormat avSampleFormat, int dataSize);
 
-    virtual void onProgress(int64_t time, int64_t currentTime);
+    virtual void onProgress(int64_t time, int64_t currentTime, int64_t cacheTime);
 
     virtual void onEnd(bool isError);
 

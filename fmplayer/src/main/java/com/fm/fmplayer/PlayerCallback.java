@@ -4,7 +4,7 @@ public interface PlayerCallback {
     public void stopLoading();
     public void softwareDecoder();
     public void voidInfo(int width, int height);
-    public void progress(long currentTime, long videoTime, boolean isSeekSuccess);
+    public void progress(long currentTime, long videoTime, long cacheTime, boolean isSeekSuccess);
     public void end(Boolean isError);
     public void loading();
 }

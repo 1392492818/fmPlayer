@@ -151,6 +151,8 @@ namespace fm {
 
         void cacheVideo();
 
+        int64_t getCacheTime();
+
         void findStreamInfo();
 
         void getStreams();

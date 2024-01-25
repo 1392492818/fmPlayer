@@ -52,8 +52,11 @@ void fm::VideoCache::cachePacket(AVPacket *avPacket, AVRational time_base) {
 
     int streamIndex = avPacket->stream_index;
     int64_t pts = avPacket->pts;
-    this->endTimeBase = (double)((double) pts * av_q2d(time_base)) * 1000;
 
+    int64_t endTimeBase = (double)((double) pts * av_q2d(time_base)) * 1000;
+    if(this->endTimeBase < endTimeBase){
+        this->endTimeBase = endTimeBase;
+    }
     AVPacket *packetInfo = av_packet_alloc();
     av_packet_copy_props(packetInfo, avPacket);
     packetInfo->size = avPacket->size;
@@ -163,6 +166,10 @@ bool fm::VideoCache::seekVideoCache(int64_t time) {
     LOGE("end找不到缓存");
 
     return false;
+}
+
+int64_t fm::VideoCache::getEndTimeBase() const {
+    return endTimeBase;
 }
 
 

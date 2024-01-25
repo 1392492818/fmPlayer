@@ -197,9 +197,9 @@ public class FmPlayer implements FmPlayerDataCallback {
     }
 
     @Override
-    public void onProgress(long time, long currentTime) {
+    public void onProgress(long time, long currentTime, long cacheTime) {
 //        Log.e(TAG, "time:"+ time + ", currentTime:" + currentTime);
-        playerCallback.progress(currentTime, time, isSeek);
+        playerCallback.progress(currentTime, time, cacheTime, isSeek);
         if (isSeek) isSeek = false;
     }
 

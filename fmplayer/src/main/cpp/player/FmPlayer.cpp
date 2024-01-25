@@ -580,7 +580,7 @@ namespace fm {
             int64_t duration = videoStream->duration * av_q2d(videoStream->time_base);
             if (duration < 0) duration = 0;
             if (this->callAvFrame != nullptr && !isError)
-                this->callAvFrame->onProgress(duration, this->videoPts / 1000);
+                this->callAvFrame->onProgress(duration, this->videoPts / 1000, this->videoDecoder->getCacheTime() / 1000);
         }
     }
 
@@ -760,7 +760,6 @@ namespace fm {
  */
     void FmPlayer::seek(int64_t time) {
         if (this->videoDecoder != nullptr && videoStream != nullptr) {
-
             {
                 std::lock_guard<std::mutex> seekLock(decoderSeekMutex);
                 std::lock_guard<std::mutex> lockAudioSeekMutex(audioSeekMutex);
@@ -781,7 +780,9 @@ namespace fm {
         // qDebug() << speed;
         std::lock_guard<std::mutex> lock(speedAudioMutex);
         this->speedAudio = speed;
-        init_filter_graph();
+        if (sink == nullptr && src == nullptr && audioCodecContext != nullptr) {
+            init_filter_graph();
+        }
     }
 
     void FmPlayer::play() {

@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -43,6 +44,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -83,6 +85,7 @@ import com.fm.fmmedia.compose.FmGlView
 import com.fm.fmmedia.compose.LifecycleEffect
 import com.fm.fmmedia.compose.RequestError
 import com.fm.fmmedia.compose.SwipeRefresh
+import com.fm.fmmedia.compose.Track
 import com.fm.fmmedia.compose.formatSecondsToHHMMSS
 import com.fm.fmmedia.compose.loading
 import com.fm.fmmedia.compose.videoItem
@@ -116,6 +119,7 @@ fun setBrightness(activity: Activity, brightness: Float) {
 /**
  * 进度和播放的控制
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @RequiresApi(Build.VERSION_CODES.Q)
 @Composable
 fun control(
@@ -129,6 +133,7 @@ fun control(
     fullHeight: MutableState<Modifier>,
     isShowSpeed: MutableState<Boolean>,
     videoSpeed: MutableState<Double>,
+    cacheProgress: Float,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -167,6 +172,13 @@ fun control(
                 position.value = it
                 isSeek.value = true
                 fmGlView.value?.seek(position.value.toLong())
+            },
+            colors = SliderDefaults.colors(
+                thumbColor = Color.White, // 修改滑块颜色
+            ),
+            track = {sliderState ->
+//                SliderDefaults.Track(sliderPositions = sliderState)
+                Track(sliderPositions = sliderState, cacheProgress = cacheProgress)
             },
             modifier = Modifier
                 .padding(5.dp)
@@ -498,6 +510,9 @@ fun videoScreen(
     var modifier = remember {
         mutableStateOf(Modifier.height(250.dp))
     }
+    var cacheProgress by remember {
+        mutableStateOf(0f)
+    }
     var isVideoLoading by remember {
         mutableStateOf(true)
     }
@@ -638,8 +653,9 @@ fun videoScreen(
                                 url = videoGroup?.video!![selectIndex].source,
                                 seekTime = position.value.toLong(),
                                 cachePath = cacheDir,
-                                progress = { currentPosition, duration, isSeekSuccess ->
+                                progress = { currentPosition, duration, cache, isSeekSuccess ->
                                     isVideoLoading = false
+                                    cacheProgress = (cache.toFloat() / duration.toFloat()).toFloat()
                                     if (isSeekSuccess) {
                                         isSeek.value = false
                                     }
@@ -735,6 +751,7 @@ fun videoScreen(
                             fullHeight = modifier,
                             isShowSpeed = isShowSpeed,
                             videoSpeed = videoSpeed,
+                            cacheProgress = cacheProgress,
                             modifier = Modifier.align(
                                 Alignment.BottomCenter
                             )
@@ -753,11 +770,14 @@ fun videoScreen(
 
                     DisposableEffect(videoGroup) {
                         isSeek.value = false
-                        fmGlView.value?.reset(
-                            videoGroup!!.video[0].source,
-                            seekTime = position.value.toLong()
-                        )
-                        fmGlView.value?.setSpeed(videoSpeed.value.toFloat())
+                        if(videoGroup!!.video.isNotEmpty()) {
+                            fmGlView.value?.reset(
+                                videoGroup!!.video[0].source,
+                                seekTime = position.value.toLong()
+                            )
+                            fmGlView.value?.setSpeed(videoSpeed.value.toFloat())
+                        }
+
                         onDispose { }
                     }
 
@@ -816,7 +836,7 @@ fun videoScreen(
                                                 if (selectIndex != index) {
                                                     fmGlView.value?.reset(
                                                         it.source,
-                                                        seekTime = position.value.toLong()
+                                                        seekTime = 0
                                                     )
                                                     selectSource = it.source
                                                     selectIndex = index

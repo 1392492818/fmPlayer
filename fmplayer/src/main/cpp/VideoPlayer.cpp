@@ -98,12 +98,12 @@ void VideoPlayer::onAudioFrame(AVFrame *avFrame, int channels, AVSampleFormat av
     g_VM->DetachCurrentThread();
 }
 
-void VideoPlayer::onProgress(int64_t time, int64_t currentTime) {
+void VideoPlayer::onProgress(int64_t time, int64_t currentTime, int64_t cacheTime) {
     JNIEnv *env;
     g_VM->AttachCurrentThread(&env, nullptr);
     jclass callbackClass = env->GetObjectClass(jobject1);
-    jmethodID onProgressId = env->GetMethodID(callbackClass, "onProgress", "(JJ)V");
-    env->CallVoidMethod(jobject1, onProgressId,time, currentTime);
+    jmethodID onProgressId = env->GetMethodID(callbackClass, "onProgress", "(JJJ)V");
+    env->CallVoidMethod(jobject1, onProgressId,time, currentTime, cacheTime);
     g_VM->DetachCurrentThread();
 }
 

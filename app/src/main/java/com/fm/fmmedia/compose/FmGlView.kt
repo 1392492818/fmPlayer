@@ -67,13 +67,13 @@ fun formatSecondsToHHMMSS(seconds: Long): String {
 
 @RequiresApi(Build.VERSION_CODES.Q)
 @SuppressLint("ViewConstructor")
-class FmGlView(context: Context, url:String, seekTime:Long,cachePath:String, progress:(currentPosition:Long, duration:Long, isSeek:Boolean)->Unit, endCallback:(isError:Boolean)->Unit = {}, onLoading: ()->Unit) : GLSurfaceView(context),PlayerCallback {
+class FmGlView(context: Context, url:String, seekTime:Long,cachePath:String, progress:(currentPosition:Long, duration:Long,cache:Long, isSeek:Boolean)->Unit, endCallback:(isError:Boolean)->Unit = {}, onLoading: ()->Unit) : GLSurfaceView(context),PlayerCallback {
     private lateinit var videoRenderOES: VideoRenderOES;
     private lateinit var surface: Surface;
     private val TAG:String = FmGlView::class.simpleName.toString();
     private var  fmPlayer:FmPlayer = FmPlayer();
     private val baseUrl = "http://192.168.0.149:9090/videos/"
-    var callback: (currentPosition:Long, duration:Long, isSeek: Boolean)->Unit;
+    var callback: (currentPosition:Long, duration:Long, cache:Long, isSeek: Boolean)->Unit;
     var endCallback: (isError:Boolean)->Unit;
     var onLoading: ()->Unit;
     var seekTime:Long
@@ -146,8 +146,8 @@ class FmGlView(context: Context, url:String, seekTime:Long,cachePath:String, pro
         this.videoRenderOES.draw(width, height)
     }
 
-    override fun progress(currentTime: Long, duration: Long, isSeek:Boolean) {
-        this.callback(currentTime, duration, isSeek);
+    override fun progress(currentTime: Long, duration: Long,cache: Long, isSeek:Boolean) {
+        this.callback(currentTime, duration, cache, isSeek);
     }
 
     override fun end(isError: Boolean) {

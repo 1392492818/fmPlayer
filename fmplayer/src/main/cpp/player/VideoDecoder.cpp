@@ -184,25 +184,32 @@ namespace fm {
     AVPacketData VideoDecoder::readPacket() {
         AVPacketData avPacketData;
         std::queue<AVPacket *> avPacketQueue;
-        if(this->videoCache->getPacketQueue().size() == 0 && this->isEnd) {
-            avPacketData.setIsEnd(this->isEnd);
-        } else {
-            avPacketData.setIsEnd(false);
-        }
 
-        if(this->videoCache->getPacketQueue().size() == 0  && isError){
+
+        if (this->videoCache->getPacketQueue().size() == 0 && isError) {
             LOGE("出错了");
+            avPacketData.setIsEnd(true);
             avPacketData.setIsError(isError);
             return avPacketData;
         }
         AVPacket *packet = videoCache->readPacket();
-        for (StreamInfo *streamInfo: streamInfos) {
-            if (streamInfo->getStreamIndex() == packet->stream_index) {
-                avPacketData.setMediaType(streamInfo->getMediaType());
-                avPacketData.setAvCodecContext(streamInfo->getCodecContext());
-                avPacketData.setAvStream(streamInfo->getAvStream());
-                avPacketQueue.push(packet);
+        if (this->videoCache->getPacketQueue().size() == 0 && this->isEnd) {
+            avPacketData.setIsEnd(this->isEnd);
+        } else {
+            avPacketData.setIsEnd(false);
+        }
+        if (packet != nullptr) {
+            for (StreamInfo *streamInfo: streamInfos) {
+                if (streamInfo->getStreamIndex() == packet->stream_index) {
+                    avPacketData.setMediaType(streamInfo->getMediaType());
+                    avPacketData.setAvCodecContext(streamInfo->getCodecContext());
+                    avPacketData.setAvStream(streamInfo->getAvStream());
+                    avPacketQueue.push(packet);
+                }
             }
+        } else {
+            isError = true;
+            isRelease = true;
         }
 
         avPacketData.setAvPacketQueue(avPacketQueue);
@@ -294,7 +301,7 @@ namespace fm {
 
     VideoDecoder::~VideoDecoder() {
         isRelease = true;
-        while (!isExit){
+        while (!isExit) {
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
         if (formatContext != nullptr) {
@@ -311,17 +318,19 @@ namespace fm {
     }
 
     void VideoDecoder::seek(int64_t time) {
-        LOGE("VideoDecoder::seek %lld", time / AV_TIME_BASE);
-        if (this->formatContext != nullptr) {
-            if(!videoCache->seekVideoCache(time / AV_TIME_BASE)) { // 从缓存中提取数据，看下有没有，如果没有，就请求，有就执行执行就可以
-                if (av_seek_frame(formatContext, -1, time, AVSEEK_FLAG_BACKWARD) < 0) {
-                    fprintf(stderr, "Seek error\n");
-                    return;
-                }
+        LOGE("VideoDecoder::seek %lld isEnd %d", time / AV_TIME_BASE, this->isEnd);
+        if (this->formatContext != nullptr && !isEnd) {
+            if (!videoCache->seekVideoCache(
+                    time / AV_TIME_BASE)) { // 从缓存中提取数据，看下有没有，如果没有，就请求，有就执行执行就可以, 另外情况， av_read_frame 已经结束了
 
-                for (StreamInfo *streamInfo: streamInfos) {
-                    avcodec_flush_buffers(streamInfo->getCodecContext());
-                }
+                    if (av_seek_frame(formatContext, -1, time, AVSEEK_FLAG_BACKWARD) < 0) {
+                        fprintf(stderr, "Seek error\n");
+                        return;
+                    }
+
+                    for (StreamInfo *streamInfo: streamInfos) {
+                        avcodec_flush_buffers(streamInfo->getCodecContext());
+                    }
             }
         }
     }
@@ -457,13 +466,17 @@ namespace fm {
             av_packet_unref(packet);
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
-        if(ret < 0 && ret != AVERROR_EOF){
+        if (ret < 0 && ret != AVERROR_EOF) {
             this->isError = true;
             LOGE("error ret %d", ret);
         } else {
             this->isEnd = true;
         }
         isExit = true;
+    }
+
+    int64_t VideoDecoder::getCacheTime() {
+        return this->videoCache->getEndTimeBase();
     }
 
 

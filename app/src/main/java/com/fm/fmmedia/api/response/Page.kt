@@ -27,7 +27,6 @@ class Page(
     inline fun <reified T> getData(): T? {
         try {
             val jsonString: String = Gson().toJson(list)
-            Log.e("page测试", toString())
             val gson = Gson()
             val type = object : TypeToken<T>() {}.type
             return gson.fromJson(jsonString, type)

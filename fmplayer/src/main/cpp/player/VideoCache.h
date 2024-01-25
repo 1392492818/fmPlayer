@@ -64,6 +64,9 @@ namespace fm {
         std::queue<AVPacket*> packetQueue;
         int64_t endTimeBase = 0;
     public:
+        int64_t getEndTimeBase() const;
+
+    public:
         const queue <AVPacket*> &getPacketQueue() const;
 
     public:
