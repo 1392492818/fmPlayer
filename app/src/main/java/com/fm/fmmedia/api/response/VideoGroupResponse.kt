@@ -6,5 +6,6 @@ data class VideoGroupResponse(
     val categoryId:Int,
     val createTime: String,
     val updateTime: String,
+    val cover:String,
     val video: List<VideoResponse>
 )

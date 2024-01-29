@@ -29,6 +29,8 @@ sealed class Screen(
 
     object Home : Screen("Home")
 
+    object ReCord: Screen("Record")
+
     object Live : Screen("Live")
 
     object Profile : Screen("Profile")

@@ -2,26 +2,33 @@ package com.fm.fmmedia.viewmodel
 
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.asLiveData
 import androidx.lifecycle.viewModelScope
 import com.fm.fmmedia.api.ApiRequest
 import com.fm.fmmedia.api.response.Result
 import com.fm.fmmedia.api.request.Login
 import com.fm.fmmedia.api.response.LoginResponse
+import com.fm.fmmedia.repository.LoginRepository
+import com.fm.fmmedia.repository.VideoCategoryRepository
 import kotlinx.coroutines.launch
 
-class LoginViewModel : ViewModel(){
+class LoginViewModel(private val loginRepository: LoginRepository) : BaseVideoModel(loginRepository){
 
-     val loginLiveData = MutableLiveData<LoginResponse?>()
+     val loginLiveData = loginRepository.loginResponse.asLiveData()
 
-//    var loginLiveData:LiveData<LoginResponse?> = _loginLiveData;
 
     fun login(account:String, password:String) {
         viewModelScope.launch{
-            val result: Result = ApiRequest.create().login(Login(account, password));
-            val loginResponse = result.parseData<LoginResponse>()
-            if (loginResponse != null) {
-                loginLiveData.postValue(loginResponse)
-            }
+            loginRepository.login(account, password)
+        }
+    }
+
+    fun clear(){
+        viewModelScope.launch {
+            loginRepository.clear()
         }
     }
 }
+
+

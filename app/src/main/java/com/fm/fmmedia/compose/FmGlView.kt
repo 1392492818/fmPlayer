@@ -16,6 +16,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import com.fm.fmmedia.BuildConfig
 import com.fm.fmplayer.FmPlayer
 import com.fm.fmplayer.PlayerCallback
 import com.fm.fmplayer.render.VideoRenderOES
@@ -72,7 +73,7 @@ class FmGlView(context: Context, url:String, seekTime:Long,cachePath:String, pro
     private lateinit var surface: Surface;
     private val TAG:String = FmGlView::class.simpleName.toString();
     private var  fmPlayer:FmPlayer = FmPlayer();
-    private val baseUrl = "http://192.168.0.149:9090/videos/"
+    private val baseUrl = BuildConfig.VIDEO_URL;
     var callback: (currentPosition:Long, duration:Long, cache:Long, isSeek: Boolean)->Unit;
     var endCallback: (isError:Boolean)->Unit;
     var onLoading: ()->Unit;

@@ -1,11 +1,18 @@
 package com.fm.fmmedia
 
+import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
+import android.view.Surface
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,61 +34,25 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.core.content.ContextCompat
 import com.fm.fmmedia.compose.FmGlView
 import com.fm.fmmedia.ui.fmAndroidApp
+import com.fm.fmmedia.viewmodel.AccessTokenModelFactory
+import com.fm.fmmedia.viewmodel.AccessTokenViewModel
 import com.fm.fmmedia.viewmodel.VideoCategoryModelFactory
 import com.fm.fmmedia.viewmodel.VideoCategoryViewModel
 
 class MainActivity : ComponentActivity() {
 
-    //    private val newWordActivityRequestCode = 1
-//    private val wordViewModel: WordViewModel by viewModels {
-//        WordViewModelFactory((application as WordsApplication).repository)
-//    }
-//
-//    override fun onCreate(savedInstanceState: Bundle?) {
-//        super.onCreate(savedInstanceState)
-//        setContentView(R.layout.activity_main)
-//
-//        val recyclerView = findViewById<RecyclerView>(R.id.recyclerview)
-//        val adapter = WordListAdapter()
-//        recyclerView.adapter = adapter
-//        recyclerView.layoutManager = LinearLayoutManager(this)
-//
-//        // Add an observer on the LiveData returned by getAlphabetizedWords.
-//        // The onChanged() method fires when the observed data changes and the activity is
-//        // in the foreground.
-//        wordViewModel.allWords.observe(this) { words ->
-//            // Update the cached copy of the words in the adapter.
-//            words.let { adapter.submitList(it) }
-//        }
-//
-//        val fab = findViewById<ImageView>(R.id.fab)
-//        fab.setOnClickListener {
-//            val intent = Intent(this@MainActivity, NewWordActivity::class.java)
-//            startActivityForResult(intent, newWordActivityRequestCode)
-//        }
-//    }
-//
-//    override fun onActivityResult(requestCode: Int, resultCode: Int, intentData: Intent?) {
-//        super.onActivityResult(requestCode, resultCode, intentData)
-//
-//        if (requestCode == newWordActivityRequestCode && resultCode == Activity.RESULT_OK) {
-//            intentData?.getStringExtra(NewWordActivity.EXTRA_REPLY)?.let { reply ->
-//                val word = Word(reply)
-//                wordViewModel.insert(word)
-//            }
-//        } else {
-//            Toast.makeText(
-//                applicationContext,
-//                R.string.empty_not_saved,
-//                Toast.LENGTH_LONG
-//            ).show()
-//        }
-//    }
     private val videoCategoryViewModel: VideoCategoryViewModel  by viewModels{
         VideoCategoryModelFactory((application as FmApplication).videoCategoryRepository)
     }
+
+    private val accessTokenViewModel: AccessTokenViewModel by viewModels {
+        AccessTokenModelFactory((application as FmApplication).accessTokenRepository)
+    }
+
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -91,7 +62,7 @@ class MainActivity : ComponentActivity() {
             // 设置状态栏背景为指定颜色（这里使用红色作为示例）
 //            DynamicColors.applyTo(context)
 //            window?.statusBarColor = Color.White.toArgb()
-            fmAndroidApp(this, videoCategoryViewModel)
+            fmAndroidApp(this, videoCategoryViewModel, accessTokenViewModel)
 
 //            FmMediaTheme {
 //                // A surface container using the 'background' color from the theme

@@ -15,7 +15,6 @@ import com.fm.fmplayer.render.VideoRender2;
 
 //import com.video.a3dlibrary.gl.image.MyRenderer;
 
-@RequiresApi(api = Build.VERSION_CODES.Q)
 public class FmGLSurfaceView extends GLSurfaceView {
 
     private VideoRender videoRender;

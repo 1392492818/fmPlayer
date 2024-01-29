@@ -45,5 +45,9 @@
     <string name="play_recommend">相关推荐</string>
     <string name="play_audio_speed">倍速</string>
 
+<!--    个人模块  -->
+
+    <string name="profile_video_camera">视频录制</string>
+    <string name="profile_file_upload">文件上传</string>
     <string name="request_error">请求失败，点击重试</string>
 </resources>

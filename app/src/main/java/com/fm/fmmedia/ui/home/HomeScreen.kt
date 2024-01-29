@@ -38,12 +38,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import com.fm.fmmedia.BuildConfig
 import com.fm.fmmedia.R
 import com.fm.fmmedia.api.response.CategoryVideoResponse
 import com.fm.fmmedia.compose.RequestError
@@ -189,7 +191,8 @@ fun homeScreen(
                                                 onVideoGroupClick(videoGroup.id)
                                             },
                                         name = videoGroup.name,
-                                        imageUrl = "https://img0.baidu.com/it/u=428280756,4053559961&fm=253&fmt=auto&app=138&f=JPEG?w=800&h=500"
+                                        imageUrl = BuildConfig.API_BASE_URL + "image/"+videoGroup.cover,
+                                        contentScale = ContentScale.Crop
                                     )
                                 }
                             }
@@ -200,7 +203,7 @@ fun homeScreen(
                                     .height(180.dp)
                                     .padding(10.dp),
                                 name = "",
-                                imageUrl = R.drawable.not_data
+                                imageUrl = R.drawable.no_cover
                             )
                         }
                         Divider()

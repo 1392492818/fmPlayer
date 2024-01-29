@@ -6,6 +6,7 @@ data class VideoResponse(
     val source: String,
     val cost: Double,
     val createTime: String,
+    val thumb: String,
     val updateTime: String,
     val order: Int,
 )

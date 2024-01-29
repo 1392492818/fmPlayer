@@ -1,5 +1,6 @@
 package com.fm.fmmedia.api
 
+import com.fm.fmmedia.BuildConfig
 import com.fm.fmmedia.api.request.Login
 import com.fm.fmmedia.api.response.Result
 import okhttp3.OkHttpClient
@@ -8,6 +9,8 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Header
+import retrofit2.http.Headers
 import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
@@ -40,10 +43,12 @@ interface ApiRequest {
         @Query("sort") sort: String
     ): Result
 
+    @GET("member/info")
+    suspend fun memberInfo(@Header("Authorization") accessToken:String): Result;
 
 
     companion object {
-        private const val BASE_URL = "http://192.168.0.149:8080/api/"
+        private const val BASE_URL = BuildConfig.API_BASE_URL
 
         fun create(): ApiRequest {
             val logger = HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BASIC }

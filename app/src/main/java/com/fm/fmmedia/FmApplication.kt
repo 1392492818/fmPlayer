@@ -2,6 +2,7 @@ package com.fm.fmmedia
 
 import android.app.Application
 import com.fm.fmmedia.dao.WordRoomDatabase
+import com.fm.fmmedia.repository.AccessTokenRepository
 import com.fm.fmmedia.repository.VideoCategoryRepository
 import com.fm.fmmedia.repository.WordRepository
 import kotlinx.coroutines.CoroutineScope
@@ -13,6 +14,9 @@ class FmApplication : Application() {
     val applicationScope = CoroutineScope(SupervisorJob())
 
     val database by lazy { WordRoomDatabase.getDatabase(this,applicationScope) }
+
     val repository by lazy { WordRepository(database.wordDao()) }
+    val accessTokenRepository by lazy{ AccessTokenRepository(database.accessTokenDao()) }
     val videoCategoryRepository by lazy { VideoCategoryRepository() }
+
 }

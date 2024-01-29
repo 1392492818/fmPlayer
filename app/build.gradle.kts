@@ -36,6 +36,15 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            buildConfigField("String", "API_BASE_URL", "\"http://192.168.0.149:8080/api/\"")
+            buildConfigField("String", "VIDEO_URL", "\"http://192.168.0.149:9090/videos/\"")
+
+        }
+        debug {
+
+            buildConfigField("String", "API_BASE_URL", "\"http://192.168.0.149:8080/api/\"")
+            buildConfigField("String", "VIDEO_URL", "\"http://192.168.0.149:9090/videos/\"")
+
         }
     }
 
@@ -56,6 +65,10 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
+    }
+
+    buildFeatures{
+        buildConfig = true
     }
 }
 
@@ -80,6 +93,8 @@ dependencies {
     implementation("androidx.room:room-common:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
     implementation("com.google.firebase:firebase-inappmessaging-ktx:20.4.0")
+    implementation("androidx.camera:camera-core:1.3.1")
+    implementation("androidx.camera:camera-view:1.3.1")
     kapt   ("androidx.room:room-compiler:2.6.1")//版本看情况吧
     implementation("androidx.recyclerview:recyclerview:1.3.2")
     implementation("com.google.android.material:material:1.11.0")
@@ -103,7 +118,21 @@ dependencies {
     implementation("com.google.accompanist:accompanist-systemuicontroller:0.32.0")
     implementation ("com.google.accompanist:accompanist-swiperefresh:0.18.0")
 //    implementation "androidx.compose.material:material-icons-extended:$compose_version"
-
+    implementation ("com.google.accompanist:accompanist-permissions:0.19.0")
+    val camerax_version = "1.4.0-alpha04"
+    // The following line is optional, as the core library is included indirectly by camera-camera2
+    implementation("androidx.camera:camera-core:${camerax_version}")
+    implementation("androidx.camera:camera-camera2:${camerax_version}")
+    // If you want to additionally use the CameraX Lifecycle library
+    implementation("androidx.camera:camera-lifecycle:${camerax_version}")
+    // If you want to additionally use the CameraX VideoCapture library
+    implementation("androidx.camera:camera-video:${camerax_version}")
+    // If you want to additionally use the CameraX View class
+    implementation("androidx.camera:camera-view:${camerax_version}")
+    // If you want to additionally add CameraX ML Kit Vision Integration
+    implementation("androidx.camera:camera-mlkit-vision:${camerax_version}")
+    // If you want to additionally use the CameraX Extensions library
+    implementation("androidx.camera:camera-extensions:${camerax_version}")
     implementation("androidx.navigation:navigation-compose:$nav_version")
     implementation("io.coil-kt:coil-compose:2.5.0")
     implementation(project(":fmplayer"))

@@ -8,5 +8,6 @@ import com.fm.fmmedia.repository.BaseRepository
 
 open class BaseVideoModel(baseRepository: BaseRepository): ViewModel()  {
     val isRequestError: LiveData<Boolean> = baseRepository.isRequestError.asLiveData()
-
+    val errorCode: LiveData<Int> = baseRepository.errorCode.asLiveData()
+    val errorMsg: LiveData<String> = baseRepository.errorMsg.asLiveData()
 }

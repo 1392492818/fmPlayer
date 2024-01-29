@@ -14,11 +14,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.fm.fmmedia.R
 import com.fm.fmmedia.model.Member
 import com.fm.fmmedia.model.VideoCollection
 import com.fm.fmmedia.ui.theme.FmMediaTheme
@@ -30,7 +32,7 @@ private val Density.cardWidthWithPaddingPx
 
 
 @Composable
-fun videoItem(modifier: Modifier = Modifier.height(100.dp), name:String = "", imageUrl: Any = ""){
+fun videoItem(modifier: Modifier = Modifier.height(100.dp), name:String = "", imageUrl: Any = "",contentScale: ContentScale = ContentScale.None){
     Column(modifier = modifier) {
         Box(modifier = Modifier
             .clip(RoundedCornerShape(8.dp))
@@ -43,9 +45,9 @@ fun videoItem(modifier: Modifier = Modifier.height(100.dp), name:String = "", im
                         .crossfade(true)
                         .build(),
                     contentDescription = "",
-//                placeholder = painterResource(R.drawable.baseline_cloud_download_24),
+                    placeholder = painterResource(R.drawable.no_cover),
                     modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.None,
+                    contentScale = contentScale,
                 )
             }
         }
