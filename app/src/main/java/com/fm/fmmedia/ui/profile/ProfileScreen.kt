@@ -95,7 +95,7 @@ import com.fm.fmmedia.viewmodel.AccessTokenViewModel
 import com.fm.fmmedia.viewmodel.MemberInfoViewModel
 import kotlin.math.abs
 import kotlin.math.roundToInt
-
+import com.fm.fmmedia.api.Error
 val maxHeader = 200.dp
 val minHeader = 68.dp
 val paddingHeader = 20.dp // 为了滑动时候不显示底部
@@ -156,11 +156,26 @@ private fun profile(
 
     val memberInfo by memberInfoViewModel.memberInfo.observeAsState()
     val accessTokenList by accessTokenViewModel.accessTokenList.observeAsState()
-    accessTokenList?.let {
-        for (accessToken in it) {
-            memberInfoViewModel.memberInfo(accessToken.accessToken)
+    val errorCode by memberInfoViewModel.errorCode.observeAsState()
+
+    LaunchedEffect(accessTokenList){
+        accessTokenList?.let {
+            for (accessToken in it) {
+                memberInfoViewModel.memberInfo(accessToken.accessToken)
+            }
         }
     }
+
+    LaunchedEffect(errorCode) {
+        if(errorCode == Error.tokenOutTimeLimit){
+            accessTokenList?.let {
+                for (accessToken in it) {
+                    accessTokenViewModel.delete(accessToken.id)
+                }
+            }
+        }
+    }
+
 
 
     val rightOffset by animateIntOffsetAsState(
@@ -431,7 +446,8 @@ private fun title(scrollProvider: () -> Int, memberInfo: MemberInfoResponse, onR
                             .wrapContentSize()
                             .clickable {
                                 onRecord()
-                            }.padding(6.dp, 0.dp),
+                            }
+                            .padding(6.dp, 0.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Icon(
@@ -457,7 +473,8 @@ private fun title(scrollProvider: () -> Int, memberInfo: MemberInfoResponse, onR
                             .wrapContentSize()
                             .clickable {
                                 Log.e("测试", "视频录制")
-                            }.padding(10.dp, 0.dp),
+                            }
+                            .padding(10.dp, 0.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Icon(

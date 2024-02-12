@@ -4,11 +4,14 @@
 
 #include "FmEncoder.h"
 
-fm::FmEncoder::FmEncoder(const char *outputPath, int width, int height, AVPixelFormat format) {
+fm::FmEncoder::FmEncoder(const char *outputPath, int width, int height, AVPixelFormat format,
+                         int sample_rate, int channels) {
     this->output = outputPath;
     this->width = width;
     this->height = height;
     this->format = format;
+    this->sample_rate = sample_rate;
+    this->channels = channels;
 }
 
 // 音频编码
@@ -17,7 +20,7 @@ AVFrame *fm::FmEncoder::alloc_audio_frame(enum AVSampleFormat sample_fmt,
                                           int sample_rate, int nb_samples) {
     AVFrame *frame = av_frame_alloc();
     if (!frame) {
-        fprintf(stderr, "Error allocating an audio frame\n");
+        LOGE("Error allocating an audio frame\n");
         exit(1);
     }
 
@@ -28,7 +31,7 @@ AVFrame *fm::FmEncoder::alloc_audio_frame(enum AVSampleFormat sample_fmt,
 
     if (nb_samples) {
         if (av_frame_get_buffer(frame, 0) < 0) {
-            fprintf(stderr, "Error allocating an audio buffer\n");
+            LOGE("Error allocating an audio buffer\n");
             exit(1);
         }
     }
@@ -50,7 +53,7 @@ void fm::FmEncoder::open_audio(AVFormatContext *oc, const AVCodec *codec,
     ret = avcodec_open2(c, codec, &opt);
     av_dict_free(&opt);
     if (ret < 0) {
-        fprintf(stderr, "Could not open audio codec: %s\n", av_err2str(ret));
+        LOGE("Could not open audio codec: %s\n", av_err2str(ret));
         exit(1);
     }
 
@@ -64,23 +67,24 @@ void fm::FmEncoder::open_audio(AVFormatContext *oc, const AVCodec *codec,
         nb_samples = 10000;
     else
         nb_samples = c->frame_size;
-
+//
     ost->frame = alloc_audio_frame(c->sample_fmt, &c->ch_layout,
                                    c->sample_rate, nb_samples);
+
     ost->tmp_frame = alloc_audio_frame(AV_SAMPLE_FMT_S16, &c->ch_layout,
                                        c->sample_rate, nb_samples);
 
     /* copy the stream parameters to the muxer */
     ret = avcodec_parameters_from_context(ost->st->codecpar, c);
     if (ret < 0) {
-        fprintf(stderr, "Could not copy the stream parameters\n");
+        LOGE("Could not copy the stream parameters\n");
         exit(1);
     }
 
     /* create resampler context */
     ost->swr_ctx = swr_alloc();
     if (!ost->swr_ctx) {
-        fprintf(stderr, "Could not allocate resampler context\n");
+        LOGE("Could not allocate resampler context\n");
         exit(1);
     }
 
@@ -94,7 +98,7 @@ void fm::FmEncoder::open_audio(AVFormatContext *oc, const AVCodec *codec,
 
     /* initialize the resampling context */
     if ((ret = swr_init(ost->swr_ctx)) < 0) {
-        fprintf(stderr, "Failed to initialize the resampling context\n");
+        LOGE("Failed to initialize the resampling context\n");
         exit(1);
     }
 }
@@ -116,7 +120,7 @@ AVFrame *fm::FmEncoder::alloc_picture(enum AVPixelFormat pix_fmt, int width, int
     /* allocate the buffers for the frame data */
     ret = av_frame_get_buffer(picture, 0);
     if (ret < 0) {
-        fprintf(stderr, "Could not allocate frame data.\n");
+        LOGE("Could not allocate frame data.\n");
         exit(1);
     }
 
@@ -135,14 +139,14 @@ void fm::FmEncoder::open_video(AVFormatContext *oc, const AVCodec *codec,
     ret = avcodec_open2(c, codec, &opt);
     av_dict_free(&opt);
     if (ret < 0) {
-        fprintf(stderr, "Could not open video codec: %s\n", av_err2str(ret));
+        LOGE("Could not open video codec: %s\n", av_err2str(ret));
         exit(1);
     }
 
     /* allocate and init a re-usable frame */
     ost->frame = alloc_picture(c->pix_fmt, c->width, c->height);
     if (!ost->frame) {
-        fprintf(stderr, "Could not allocate video frame\n");
+        LOGE("Could not allocate video frame\n");
         exit(1);
     }
 
@@ -151,17 +155,17 @@ void fm::FmEncoder::open_video(AVFormatContext *oc, const AVCodec *codec,
      * output format. */
     ost->tmp_frame = NULL;
 //    if (c->pix_fmt != AV_PIX_FMT_YUV420P) {
-        ost->tmp_frame = alloc_picture(this->format, c->width, c->height);
-        if (!ost->tmp_frame) {
-            fprintf(stderr, "Could not allocate temporary picture\n");
-            exit(1);
-        }
+    ost->tmp_frame = alloc_picture(this->format, c->width, c->height);
+    if (!ost->tmp_frame) {
+        LOGE("Could not allocate temporary picture\n");
+        exit(1);
+    }
 //    }
 
     /* copy the stream parameters to the muxer */
     ret = avcodec_parameters_from_context(ost->st->codecpar, c);
     if (ret < 0) {
-        fprintf(stderr, "Could not copy the stream parameters\n");
+        LOGE("Could not copy the stream parameters\n");
         exit(1);
     }
 }
@@ -179,61 +183,72 @@ void fm::FmEncoder::open_video(AVFormatContext *oc, const AVCodec *codec,
  */
 void fm::FmEncoder::add_stream(OutputStream *ost, AVFormatContext *oc,
                                const AVCodec **codec,
-                               enum AVCodecID codec_id) {
+                               std::string codecName) {
     AVCodecContext *c;
     int i;
 
     /* find the encoder */
 
 //    *codec = avcodec_find_encoder(codec_id);
-    *codec = avcodec_find_encoder_by_name("libx264");
+    *codec = avcodec_find_encoder_by_name(codecName.c_str());
 
     if (!(*codec)) {
-        fprintf(stderr, "Could not find encoder for '%s'\n",
-                avcodec_get_name(codec_id));
+        LOGE("Could not find encoder for '%s'\n",
+             codecName.c_str());
         exit(1);
     }
 
     ost->tmp_pkt = av_packet_alloc();
     if (!ost->tmp_pkt) {
-        fprintf(stderr, "Could not allocate AVPacket\n");
+        LOGE("Could not allocate AVPacket\n");
         exit(1);
     }
 
     ost->st = avformat_new_stream(oc, NULL);
     if (!ost->st) {
-        fprintf(stderr, "Could not allocate stream\n");
+        LOGE("Could not allocate stream\n");
         exit(1);
     }
     ost->st->id = oc->nb_streams - 1;
     c = avcodec_alloc_context3(*codec);
     if (!c) {
-        fprintf(stderr, "Could not alloc an encoding context\n");
+        LOGE("Could not alloc an encoding context\n");
         exit(1);
     }
     ost->enc = c;
     AVChannelLayout avChannelLayout = AV_CHANNEL_LAYOUT_STEREO;
+    switch (channels) {
+        case 1:
+            avChannelLayout = AV_CHANNEL_LAYOUT_MONO;
+            break;
+        case 2:
+            avChannelLayout = AV_CHANNEL_LAYOUT_STEREO;
+            break;
+        default:
+            break;
+    }
 
     switch ((*codec)->type) {
         case AVMEDIA_TYPE_AUDIO:
             c->sample_fmt = (*codec)->sample_fmts ?
-                            (*codec)->sample_fmts[0] : AV_SAMPLE_FMT_FLTP;
+                            (*codec)->sample_fmts[0] : AV_SAMPLE_FMT_S16;
             c->bit_rate = 64000;
-            c->sample_rate = 44100;
+            c->sample_rate = this->sample_rate;
+            //查看编码器支持的采样率是多少
             if ((*codec)->supported_samplerates) {
                 c->sample_rate = (*codec)->supported_samplerates[0];
                 for (i = 0; (*codec)->supported_samplerates[i]; i++) {
-                    if ((*codec)->supported_samplerates[i] == 44100)
-                        c->sample_rate = 44100;
+                    if ((*codec)->supported_samplerates[i] == this->sample_rate)
+                        c->sample_rate = this->sample_rate;
                 }
             }
             av_channel_layout_copy(&c->ch_layout, &avChannelLayout);
             ost->st->time_base = (AVRational) {1, c->sample_rate};
             break;
         case AVMEDIA_TYPE_VIDEO:
-            c->codec_id = codec_id;
+//            c->codec_id = codec_id;
 
-            c->bit_rate = 400000;
+            c->bit_rate = this->width * this->height * 3;
             /* Resolution must be a multiple of two. */
             c->width = this->width;
             c->height = this->height;
@@ -244,7 +259,7 @@ void fm::FmEncoder::add_stream(OutputStream *ost, AVFormatContext *oc,
             ost->st->time_base = (AVRational) {1, STREAM_FRAME_RATE};
             c->time_base = ost->st->time_base;
 
-            c->gop_size = 12; /* emit one intra frame every twelve frames at most */
+            c->gop_size = 10; /* emit one intra frame every twelve frames at most */
             c->pix_fmt = STREAM_PIX_FMT;
             if (c->codec_id == AV_CODEC_ID_MPEG2VIDEO) {
                 /* just for testing, we also add B-frames */
@@ -275,8 +290,8 @@ int fm::FmEncoder::write_frame(AVFormatContext *fmt_ctx, AVCodecContext *c,
     // send the frame to the encoder
     ret = avcodec_send_frame(c, frame);
     if (ret < 0) {
-        fprintf(stderr, "Error sending a frame to the encoder: %s\n",
-                av_err2str(ret));
+        LOGE("Error sending a frame to the encoder: %s\n",
+             av_err2str(ret));
         exit(1);
     }
 
@@ -285,14 +300,13 @@ int fm::FmEncoder::write_frame(AVFormatContext *fmt_ctx, AVCodecContext *c,
         if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
             break;
         else if (ret < 0) {
-            fprintf(stderr, "Error encoding a frame: %s\n", av_err2str(ret));
+            LOGE("Error encoding a frame: %s\n", av_err2str(ret));
             exit(1);
         }
 
         /* rescale output packet timestamp values from codec to stream timebase */
         av_packet_rescale_ts(pkt, c->time_base, st->time_base);
         pkt->stream_index = st->index;
-
         /* Write the compressed frame to the media file. */
         //log_packet(fmt_ctx, pkt);
         ret = av_interleaved_write_frame(fmt_ctx, pkt);
@@ -300,7 +314,7 @@ int fm::FmEncoder::write_frame(AVFormatContext *fmt_ctx, AVCodecContext *c,
          * its contents and resets pkt), so that no unreferencing is necessary.
          * This would be different if one used av_write_frame(). */
         if (ret < 0) {
-            fprintf(stderr, "Error while writing output packet: %s\n", av_err2str(ret));
+            LOGE("Error while writing output packet: %s\n", av_err2str(ret));
             exit(1);
         }
     }
@@ -308,53 +322,6 @@ int fm::FmEncoder::write_frame(AVFormatContext *fmt_ctx, AVCodecContext *c,
     return ret == AVERROR_EOF ? 1 : 0;
 }
 
-
-int fm::FmEncoder::write_video_frame(AVFormatContext *oc, OutputStream *ost) {
-//    return write_frame(oc, ost->enc, ost->st, get_video_frame(ost), ost->tmp_pkt);
-    return 0;
-}
-
-int fm::FmEncoder::write_audio_frame(AVFormatContext *oc, OutputStream *ost) {
-    AVCodecContext *c;
-    AVFrame *frame;
-    int ret;
-    int dst_nb_samples;
-
-    c = ost->enc;
-    return 0;
-//    frame = get_audio_frame(ost);
-//
-//    if (frame) {
-//        /* convert samples from native format to destination codec format, using the resampler */
-//        /* compute destination number of samples */
-//        dst_nb_samples = av_rescale_rnd(swr_get_delay(ost->swr_ctx, c->sample_rate) + frame->nb_samples,
-//                                        c->sample_rate, c->sample_rate, AV_ROUND_UP);
-////        av_assert0(dst_nb_samples == frame->nb_samples);
-//
-//        /* when we pass a frame to the encoder, it may keep a reference to it
-//         * internally;
-//         * make sure we do not overwrite it here
-//         */
-//        ret = av_frame_make_writable(ost->frame);
-//        if (ret < 0)
-//            exit(1);
-//
-//        /* convert to destination format */
-//        ret = swr_convert(ost->swr_ctx,
-//                          ost->frame->data, dst_nb_samples,
-//                          (const uint8_t **)frame->data, frame->nb_samples);
-//        if (ret < 0) {
-//            fprintf(stderr, "Error while converting\n");
-//            exit(1);
-//        }
-//        frame = ost->frame;
-//
-//        frame->pts = av_rescale_q(ost->samples_count, (AVRational){1, c->sample_rate}, c->time_base);
-//        ost->samples_count += dst_nb_samples;
-//    }
-//
-//    return write_frame(oc, c, ost->st, frame, ost->tmp_pkt);
-}
 
 void fm::FmEncoder::close_stream(AVFormatContext *oc, OutputStream *ost) {
     avcodec_free_context(&ost->enc);
@@ -369,7 +336,7 @@ void fm::FmEncoder::close_stream(AVFormatContext *oc, OutputStream *ost) {
 bool fm::FmEncoder::init() {
     av_dict_set(&opt, "author", "fm", 0);
 
-    avformat_alloc_output_context2(&oc, NULL, "flv", output);
+    avformat_alloc_output_context2(&oc, NULL, NULL, output);
     fmt = oc->oformat;
 
 
@@ -377,16 +344,16 @@ bool fm::FmEncoder::init() {
     * and initialize the codecs. */
     if (fmt->video_codec != AV_CODEC_ID_NONE) {
 //        add_stream(&video_st, oc, &video_codec, fmt->video_codec);
-        add_stream(&video_st, oc, &video_codec, AV_CODEC_ID_H264);
+        add_stream(&video_st, oc, &video_codec, "libx264");
 
         have_video = 1;
         encode_video = 1;
     }
-//    if (fmt->audio_codec != AV_CODEC_ID_NONE) {
-//        add_stream(&audio_st, oc, &audio_codec, fmt->audio_codec);
-//        have_audio = 1;
-//        encode_audio = 1;
-//    }
+    if (fmt->audio_codec != AV_CODEC_ID_NONE) {
+        add_stream(&audio_st, oc, &audio_codec, "aac");
+        have_audio = 1;
+        encode_audio = 1;
+    }
 
 
     /* Now that all the parameters are set, we can open the audio and
@@ -403,8 +370,8 @@ bool fm::FmEncoder::init() {
     if (!(fmt->flags & AVFMT_NOFILE)) {
         ret = avio_open(&oc->pb, this->output, AVIO_FLAG_WRITE);
         if (ret < 0) {
-            fprintf(stderr, "Could not open '%s': %s\n", this->output,
-                    av_err2str(ret));
+            LOGE("Could not open '%s': %s\n", this->output,
+                 av_err2str(ret));
             return 1;
         }
     }
@@ -412,57 +379,78 @@ bool fm::FmEncoder::init() {
     /* Write the stream header, if any. */
     ret = avformat_write_header(oc, nullptr);
     if (ret < 0) {
-        fprintf(stderr, "Error occurred when opening output file: %s\n",
-                av_err2str(ret));
+        LOGE("Error occurred when opening output file: %s\n",
+             av_err2str(ret));
         return 1;
     }
+
+    auto encoderVideo = std::bind(&FmEncoder::start_encoder_video, this);
+    // 创建线程，并调用绑定的成员函数
+    std::thread startEncoderVideo = std::thread(encoderVideo);
+    startEncoderVideo.detach();
+
+
+    auto encoderAudio = std::bind(&FmEncoder::start_encoder_audio, this);
+    // 创建线程，并调用绑定的成员函数
+    std::thread startEncoderAudio = std::thread(encoderAudio);
+    startEncoderAudio.detach();
+
+
     return 0;
-
-//    while (encode_video || encode_audio) {
-//        /* select the stream to encode */
-//        if (encode_video &&
-//            (!encode_audio || av_compare_ts(video_st.next_pts, video_st.enc->time_base,
-//                                            audio_st.next_pts, audio_st.enc->time_base) <= 0)) {
-//            encode_video = !write_video_frame(oc, &video_st);
-//        } else {
-//            encode_audio = !write_audio_frame(oc, &audio_st);
-//        }
-//    }
-
 
 
 }
 
 void fm::FmEncoder::end() {
+    this->isExit = true;
+    while (true) {
+        if (this->videoQueue.empty() && this->audioQueue.empty()) break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    if (have_video) {
+        write_frame(oc, (&video_st)->enc, (&video_st)->st, nullptr, (&video_st)->tmp_pkt);
+    }
+    if (have_audio) {
+        write_frame(oc, (&audio_st)->enc, (&audio_st)->st, nullptr, (&audio_st)->tmp_pkt);
+    }
     av_write_trailer(oc);
 
     /* Close each codec. */
-    if (have_video)
+    if (have_video) {
         close_stream(oc, &video_st);
-    if (have_audio)
+    }
+
+    if (have_audio) {
         close_stream(oc, &audio_st);
+    }
 
     if (!(fmt->flags & AVFMT_NOFILE))
         /* Close the output file. */
         avio_closep(&oc->pb);
-
+    LOGE("视频流 %d", imageIndex);
     /* free the stream */
     avformat_free_context(oc);
 }
 
-int fm::FmEncoder::add_video_frame(char *data, int width, int height, int format) {
+int fm::FmEncoder::encoder_video_frame(char *data, int dataLength, long seconds) {
     OutputStream *ost = &video_st;
     AVCodecContext *c = ost->enc;
 
     /* check if we want to generate more frames */
-//    if (av_compare_ts(ost->next_pts, c->time_base,
-//                      STREAM_DURATION, (AVRational) {1, 1}) > 0)
-//        return 0;
+    if (av_compare_ts(ost->next_pts, c->time_base,
+                      STREAM_DURATION, (AVRational) {1, 1}) > 0) {
+        LOGE("video continue");
+        return 0;
+    }
+
 
     /* when we pass a frame to the encoder, it may keep a reference to it
      * internally; make sure we do not overwrite it here */
-    if (av_frame_make_writable(ost->frame) < 0)
+    if (av_frame_make_writable(ost->frame) < 0) {
+        LOGE("av_frame_make_writable");
         return -1;
+    }
+
 
     /* as we only generate a YUV420P picture, we must convert it
      * to the codec pixel format if needed */
@@ -473,7 +461,7 @@ int fm::FmEncoder::add_video_frame(char *data, int width, int height, int format
                                       c->pix_fmt,
                                       SCALE_FLAGS, NULL, NULL, NULL);
         if (!ost->sws_ctx) {
-            fprintf(stderr,
+            LOGE(
                     "Could not initialize the conversion context\n");
             return -1;
         }
@@ -487,17 +475,107 @@ int fm::FmEncoder::add_video_frame(char *data, int width, int height, int format
               ost->tmp_frame->linesize, 0, c->height, ost->frame->data,
               ost->frame->linesize);
 
-
-    ost->frame->pts = ost->next_pts++;
-
+    //imageIndex++;
+    //视频有时候可能 帧数不够,根据生成时间来计算 pts
+//    ost->frame->pts = ost->next_pts++;
+    //1、1秒25帧，根据秒数计算出实际位置
+    ost->frame->pts = (seconds) /  (1000 / STREAM_FRAME_RATE);
     return write_frame(oc, ost->enc, ost->st, ost->frame, ost->tmp_pkt);
 }
 
-int fm::FmEncoder::add_audio_frame(char *data) {
-    return !write_audio_frame(oc, &audio_st);
+int fm::FmEncoder::encoder_audio_frame(int16_t *data, int length, long seconds) {
+    OutputStream *ost = &audio_st;
+    AVCodecContext *c = ost->enc;
+
+    AVFrame *frame = ost->tmp_frame;
+
+    int16_t *audioFrame = (int16_t *) frame->data[0]; // 获取音频数据指针, 根据是数据类型，转换成相对应格式
+    memcpy(audioFrame, data, length);
+
+    int dst_nb_samples = av_rescale_rnd(
+            swr_get_delay(ost->swr_ctx, c->sample_rate) + ost->frame->nb_samples,
+            c->sample_rate, c->sample_rate, AV_ROUND_UP);
+
+    /* when we pass a frame to the encoder, it may keep a reference to it
+     * internally;
+     * make sure we do not overwrite it here
+     */
+    ret = av_frame_make_writable(ost->frame);
+    if (ret < 0)
+        exit(1);
+    /* convert to destination format */
+    ret = swr_convert(ost->swr_ctx,
+                      ost->frame->data, frame->nb_samples,
+                      (const uint8_t **) frame->data, frame->nb_samples);
+    if (ret < 0) {
+        fprintf(stderr, "Error while converting\n");
+        exit(1);
+    }
+    frame = ost->frame;
+//    frame->pts = av_rescale_q(ost->samples_count, (AVRational) {1, c->sample_rate}, c->time_base);
+    frame->pts = seconds * (c->sample_rate / 1000.0);
+    LOGE("测试 %lld", frame->pts);
+    ost->samples_count += dst_nb_samples;
+    return write_frame(oc, ost->enc, ost->st, frame, ost->tmp_pkt);
+}
+
+void fm::FmEncoder::add_video_frame(char *data, int dataLength, long seconds) {
+    {
+        std::lock_guard lock(this->videoQueueMutex);
+        this->videoQueue.push(FrameInfo(data, dataLength, seconds));
+    }
+}
+
+void fm::FmEncoder::add_audio_frame(char *data, int dataLength, long seconds) {
+    {
+        std::lock_guard lock(this->audioQueueMutex);
+        this->audioQueue.push(FrameInfo(data, dataLength, seconds));
+    }
+}
+
+void fm::FmEncoder::start_encoder_video() {
+    while (true) {
+        if (isExit && this->videoQueue.empty()) {
+            break;
+        }
+        if (this->videoQueue.empty()) {
+            continue;
+        }
+        std::lock_guard lock(this->videoQueueMutex);
+        FrameInfo frameInfo = this->videoQueue.front();
+        encoder_video_frame(frameInfo.getData(), frameInfo.getDataLength(), frameInfo.getSeconds());
+        this->videoQueue.pop();
+
+    }
+}
+
+void fm::FmEncoder::start_encoder_audio() {
+    while (true) {
+        if (isExit && this->audioQueue.empty()) {
+            break;
+        }
+        if (this->audioQueue.empty()) { continue; }
+        std::lock_guard lock(this->audioQueueMutex);
+        FrameInfo frameInfo = this->audioQueue.front();
+        encoder_audio_frame(reinterpret_cast<int16_t *>(frameInfo.getData()),
+                            frameInfo.getDataLength(), frameInfo.getSeconds());
+        this->audioQueue.pop();
+    }
 }
 
 
+fm::FrameInfo::FrameInfo(char *data, int dataLength, long seconds) : data(data),
+                                                                     dataLength(dataLength),
+                                                                     seconds(seconds) {}
 
+char *fm::FrameInfo::getData() const {
+    return data;
+}
 
+int fm::FrameInfo::getDataLength() const {
+    return dataLength;
+}
 
+long fm::FrameInfo::getSeconds() const {
+    return seconds;
+}

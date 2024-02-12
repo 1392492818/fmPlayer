@@ -41,8 +41,8 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_fm_fmplayer_FmPlayer_startPlayer(JNIEnv *env, jobject clazz,
-                                                       jstring url, jobject callbackObj,
-                                                       jstring id, jlong time, jstring cachePath) {
+                                          jstring url, jobject callbackObj,
+                                          jstring id, jlong time, jstring cachePath) {
     // TODO: implement startPlayer()
     const char *urlString = env->GetStringUTFChars(url, JNI_FALSE);
 
@@ -124,57 +124,58 @@ Java_com_fm_fmplayer_FmPlayer_stop(JNIEnv *env, jobject clazz, jstring id) {
     LOGE("停止");
 }
 
-
-extern "C"
-JNIEXPORT jboolean JNICALL
-Java_com_marvel_fmPlayer_fragment_camera_CameraFragment_addVideoFrame(JNIEnv *env, jobject clazz,
-                                                                      jobject bitmap) {
-
-    std::lock_guard<std::mutex> lockGuard(encoder);
-
-    AndroidBitmapInfo info;
-    void *pixels;
-
-    if (AndroidBitmap_getInfo(env, bitmap, &info) < 0) {
-        // 处理获取信息失败的情况
-        return false;
-    }
-
-    if (AndroidBitmap_lockPixels(env, bitmap, &pixels) < 0) {
-        // 处理锁定像素失败的情况
-        return false;
-    }
-
-    {
-        if (fmEncoder == nullptr) {
-            AVPixelFormat avPixelFormat = AV_PIX_FMT_RGBA;
-            if (info.format == ANDROID_BITMAP_FORMAT_RGBA_8888) {
-                avPixelFormat = AV_PIX_FMT_RGBA;
-            } else if (info.format == ANDROID_BITMAP_FORMAT_RGB_565) {
-                avPixelFormat = AV_PIX_FMT_RGB565BE;
-            } else {
-                return false;
-            }
-//            fmEncoder = new fm::FmEncoder("/data/data/com.marvel.fmPlayer/files/test.mp4",
+//
+//extern "C"
+//JNIEXPORT jboolean JNICALL
+//Java_com_marvel_fmPlayer_fragment_camera_CameraFragment_addVideoFrame(JNIEnv *env, jobject clazz,
+//                                                                      jobject bitmap) {
+//
+//    std::lock_guard<std::mutex> lockGuard(encoder);
+//
+//    AndroidBitmapInfo info;
+//    void *pixels;
+//
+//    if (AndroidBitmap_getInfo(env, bitmap, &info) < 0) {
+//        // 处理获取信息失败的情况
+//        return false;
+//    }
+//
+//    if (AndroidBitmap_lockPixels(env, bitmap, &pixels) < 0) {
+//        // 处理锁定像素失败的情况
+//        return false;
+//    }
+//
+//    {
+//        if (fmEncoder == nullptr) {
+//            AVPixelFormat avPixelFormat = AV_PIX_FMT_RGBA;
+//            if (info.format == ANDROID_BITMAP_FORMAT_RGBA_8888) {
+//                avPixelFormat = AV_PIX_FMT_RGBA;
+//            } else if (info.format == ANDROID_BITMAP_FORMAT_RGB_565) {
+//                avPixelFormat = AV_PIX_FMT_RGB565BE;
+//            } else {
+//                return false;
+//            }
+////            fmEncoder = new fm::FmEncoder("/data/data/com.marvel.fmPlayer/files/test.mp4",
+////                                          info.width,
+////                                          info.height, avPixelFormat);
+//            fmEncoder = new fm::FmEncoder("/data/data/com.fm.fmmedia/files/test.mp4",
 //                                          info.width,
 //                                          info.height, avPixelFormat);
-            fmEncoder = new fm::FmEncoder("rtmp://webrtc.duxingzhe.top:1935/live/fmtest",
-                                          info.width,
-                                          info.height, avPixelFormat);
-            fmEncoder->init();
-        }
-    }
+//            fmEncoder->init();
+//        }
+//    }
+//
+//
+//    if (fmEncoder != nullptr) {
+//        fmEncoder->add_video_frame(static_cast<char *>(pixels), info.width, info.height,
+//                                   info.format);
+//    }
+//
+//    AndroidBitmap_unlockPixels(env, bitmap);
+//    return true;
+//    // TODO: implement addVideoFrame()
+//}
 
-
-    if (fmEncoder != nullptr) {
-        fmEncoder->add_video_frame(static_cast<char *>(pixels), info.width, info.height,
-                                   info.format);
-    }
-
-    AndroidBitmap_unlockPixels(env, bitmap);
-    return true;
-    // TODO: implement addVideoFrame()
-}
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_marvel_fmPlayer_fragment_camera_CameraFragment_stopEncoder(JNIEnv *env, jobject clazz) {
@@ -205,7 +206,6 @@ Java_com_fm_fmplayer_FmPlayer_play(JNIEnv *env, jobject thiz, jstring id) {
         } else {
             LOGE("没有找到");
         }
-
     }
 }
 extern "C"
@@ -256,7 +256,7 @@ Java_com_fm_fmplayer_FmPlayer_seek(JNIEnv *env, jobject thiz, jstring id, jlong 
 }
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_fm_fmplayer_FmPlayer_setSpeed(JNIEnv *env, jobject thiz,jstring id, jfloat speed) {
+Java_com_fm_fmplayer_FmPlayer_setSpeed(JNIEnv *env, jobject thiz, jstring id, jfloat speed) {
     // TODO: implement setSpeed()
     FmPlayerStruct *fmPlayerStruct = nullptr;
     {
@@ -275,4 +275,72 @@ Java_com_fm_fmplayer_FmPlayer_setSpeed(JNIEnv *env, jobject thiz,jstring id, jfl
             LOGE("找不到 %s %d", idString.data(), playerHashMap.size());
         }
     }
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_fm_fmplayer_encoder_FmEncoder_encoder(JNIEnv *env, jclass thiz, jint width, jint height,
+                                               jint format, jint sample_rate, jint channel) {
+    // TODO: implement encoder()
+
+    std::lock_guard<std::mutex> lockGuard(encoder);
+
+    fmEncoder = new fm::FmEncoder("/data/data/com.fm.fmmedia/files/test.mp4",
+                                  width,
+                                  height, static_cast<AVPixelFormat>(format), sample_rate, channel);
+    fmEncoder->init();
+}
+
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_fm_fmplayer_encoder_FmEncoder_addVideoFrame(JNIEnv *env, jclass thiz, jbyteArray data,
+                                                     jlong seconds) {
+    // TODO: implement addVideoFrame()
+    {
+        std::lock_guard<std::mutex> lockGuard(encoder);
+        if (fmEncoder == nullptr) {
+            return;
+            LOGE("视频null");
+        }
+    }
+    jsize len = env->GetArrayLength(data);
+    jbyte *bytes = env->GetByteArrayElements(data, NULL);
+    fmEncoder->add_video_frame(reinterpret_cast<char *>(bytes), len, seconds);
+
+    env->ReleaseByteArrayElements(data, bytes, JNI_ABORT);
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_fm_fmplayer_encoder_FmEncoder_addAudioFrame(JNIEnv *env, jclass thiz, jbyteArray data,
+                                                     jlong seconds) {
+    // TODO: implement addAudioFrame()
+
+    {
+        std::lock_guard<std::mutex> lockGuard(encoder);
+        if (fmEncoder == nullptr) {
+            LOGE("音频null");
+            return;
+        }
+    }
+    jsize len = env->GetArrayLength(data);
+    jbyte *bytes = env->GetByteArrayElements(data, NULL);
+
+    fmEncoder->add_audio_frame(reinterpret_cast<char* >(bytes), len, seconds);
+    env->ReleaseByteArrayElements(data, bytes, JNI_ABORT);
+
+}
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_fm_fmplayer_encoder_FmEncoder_stopEncoder(JNIEnv *env, jclass thiz) {
+    // TODO: implement endCoder()
+    std::lock_guard<std::mutex> lockGuard(encoder);
+    LOGE("结束");
+    if (fmEncoder != nullptr) {
+        fmEncoder->end();
+    } else {
+        LOGE("encoder 为 null");
+    }
+    fmEncoder = nullptr;
 }

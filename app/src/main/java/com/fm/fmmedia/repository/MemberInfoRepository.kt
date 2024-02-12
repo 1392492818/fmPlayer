@@ -20,10 +20,13 @@ class MemberInfoRepository :BaseRepository() {
     ) {
         try {
             isRequestError.value = false
+            errorCode.value = 0
             val result: Result = ApiRequest.create().memberInfo(accessToken);
             Log.e(TAG, result.toString())
             if(result.code == 0) {
                 memberInfo.value  = result.parseData<MemberInfoResponse>()
+            } else {
+                errorCode.value = result.code
             }
 
         } catch (e: Exception) {

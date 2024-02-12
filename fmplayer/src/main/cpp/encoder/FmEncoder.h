@@ -4,6 +4,13 @@
 
 #ifndef FMPLAYER_FMENCODER_H
 #define FMPLAYER_FMENCODER_H
+
+#include <string>
+
+#include "../util.h"
+#include <mutex>
+#include <queue>
+#include <thread>
 extern "C" {
 #include "libavformat/avformat.h"
 #include "libavcodec/avcodec.h"
@@ -16,6 +23,8 @@ extern "C" {
 #include <libavutil/opt.h>
 #include <libswscale/swscale.h>
 #include <libswresample/swresample.h>
+#include "libavutil/time.h"
+
 }
 namespace fm {
 #define STREAM_DURATION   10.0
@@ -42,17 +51,43 @@ namespace fm {
         struct SwrContext *swr_ctx;
     } OutputStream;
 
+    class FrameInfo{
+    private:
+        char* data;
+    public:
+        char *getData() const;
+
+        int getDataLength() const;
+
+        long getSeconds() const;
+
+    public:
+        FrameInfo(char *data, int dataLength, long seconds);
+
+    private:
+        int dataLength;
+        long seconds;
+    };
+
     class FmEncoder {
     public:
-        FmEncoder(const char* input, int width, int height, AVPixelFormat format);
+        FmEncoder(const char* input, int width, int height, AVPixelFormat format, int sample_rate, int channels);
         bool init();
-        int add_video_frame(char* data, int width, int height,int format);
-        int add_audio_frame(char* data);
+        int encoder_video_frame(char* data, int dataLength, long seconds);
+        int encoder_audio_frame(int16_t * data, int dataLength, long seconds);
+        void start_encoder_video();
+        void start_encoder_audio();
+        void add_video_frame(char* data, int dataLength, long seconds);
+        void add_audio_frame(char * data, int dataLength, long seconds);
         void end();
     private:
         const char* output;
         int width;
         int height;
+        int isExit = false;
+        int imageIndex = 0;
+        int sample_rate;
+        int channels;
         AVPixelFormat format;
         AVDictionary *opt = NULL;
         const AVOutputFormat *fmt;
@@ -61,6 +96,14 @@ namespace fm {
         AVCodecContext *videoCodecContext;
         AVStream *videoStream;
         AVFormatContext *oc;
+
+        std::mutex videoQueueMutex;
+        std::mutex audioQueueMutex;
+        std::condition_variable videoQueueFull;   // 队列不满的条件变量
+        std::condition_variable audioQueueFull;
+        std::queue<FrameInfo> videoQueue;
+        std::queue<FrameInfo> audioQueue;
+
         int ret;
         const AVCodec *audio_codec, *video_codec;
         int have_video = 0, have_audio = 0;
@@ -68,7 +111,7 @@ namespace fm {
 
         void add_stream(OutputStream *ost, AVFormatContext *oc,
                                        const AVCodec **codec,
-                                       enum AVCodecID codec_id);
+                                       std::string codecName);
         void open_video(AVFormatContext *oc, const AVCodec *codec,
                         OutputStream *ost, AVDictionary *opt_arg);
         AVFrame *alloc_picture(enum AVPixelFormat pix_fmt, int width, int height);
@@ -79,12 +122,10 @@ namespace fm {
                         OutputStream *ost, AVDictionary *opt_arg);
         OutputStream video_st = { 0 }, audio_st = { 0 };
 
-        int write_video_frame(AVFormatContext *oc, OutputStream *ost);
 
         int write_frame(AVFormatContext *fmt_ctx, AVCodecContext *c,
                         AVStream *st, AVFrame *frame, AVPacket *pkt);
 
-        int write_audio_frame(AVFormatContext *oc, OutputStream *ost);
 
 
         void close_stream(AVFormatContext *oc, OutputStream *ost);

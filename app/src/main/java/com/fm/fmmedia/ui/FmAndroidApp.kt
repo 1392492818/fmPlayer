@@ -210,16 +210,10 @@ fun fmNavHost(
                     accessTokenViewModel = accessTokenViewModel,
                     memberInfoViewModel = memberInfoViewModel,
                     onRecord = {
-                        navController.navigate(Screen.ReCord.route) {
-                            launchSingleTop = true
-                            popUpTo(Screen.Profile.route) {
-                                inclusive = true
-                            }
-                        }
+                        navController.navigate(Screen.ReCord.route)
                     }
                 )
             }
-
         }
         composable(route = Screen.Video.route, arguments = Screen.Video.navArguments) {
             val id: Int? = it.arguments?.getInt("id")
