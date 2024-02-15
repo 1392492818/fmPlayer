@@ -31,6 +31,13 @@ sealed class Screen(
 
     object ReCord: Screen("Record")
 
+    object VideoEdit: Screen(route = "VideoEdit/{path}",   navArguments = listOf(navArgument("path") {
+        type = NavType.StringType
+    })
+    ) {
+        fun createRoute(path: String) = "VideoEdit/${path}"
+    }
+
     object Live : Screen("Live")
 
     object Profile : Screen("Profile")

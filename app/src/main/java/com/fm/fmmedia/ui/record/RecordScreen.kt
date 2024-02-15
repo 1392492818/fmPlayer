@@ -33,6 +33,7 @@ import com.fm.fmplayer.encoder.H264Encoder
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import java.io.IOException
@@ -44,11 +45,16 @@ val channelConfig = AudioFormat.CHANNEL_IN_MONO
 val channelCount = 1
 val audioFormat = AudioFormat.ENCODING_PCM_16BIT
 val bufferSize = AudioRecord.getMinBufferSize(sampleRateInHz, channelConfig, audioFormat)
-val frameSize =  channelCount * 1024 * 2 // 通道数 * 位数 * 每个声道采样数
+val frameSize = channelCount * 1024 * 2 // 通道数 * 位数 * 每个声道采样数 16 bit 为两位
 var audioRecord: AudioRecord? = null;
 
 @OptIn(DelicateCoroutinesApi::class)
-private fun startRecording(context: android.content.Context, isRecord: MutableState<Boolean>,endCall:()->Unit, callAudioData: (data: ByteArray)->Unit) {
+private fun startRecording(
+    context: android.content.Context,
+    isRecord: MutableState<Boolean>,
+    endCall: () -> Unit,
+    callAudioData: (data: ByteArray) -> Unit
+) {
     try {
         if (ActivityCompat.checkSelfPermission(
                 context,
@@ -88,10 +94,10 @@ private fun startRecording(context: android.content.Context, isRecord: MutableSt
 
 @OptIn(
     ExperimentalComposeUiApi::class, ExperimentalPermissionsApi::class,
-    ExperimentalMaterial3Api::class
+    ExperimentalMaterial3Api::class, DelicateCoroutinesApi::class
 )
 @Composable
-fun CameraPermissionScreen() {
+fun CameraPermissionScreen(onVideoUpload: (path: String) -> Unit = {}) {
     // 获取摄像头权限状态
     val permissionState = rememberMultiplePermissionsState(
         permissions =
@@ -103,7 +109,7 @@ fun CameraPermissionScreen() {
     var isRecord = remember {
         mutableStateOf(false)
     }
-    val h264Encoder:H264Encoder by remember {
+    val h264Encoder: H264Encoder by remember {
         mutableStateOf(H264Encoder())
     }
 
@@ -111,7 +117,7 @@ fun CameraPermissionScreen() {
         mutableStateOf(System.currentTimeMillis())
     }
 
-    var fmEncoder:FmEncoder? by remember {
+    var fmEncoder: FmEncoder? by remember {
         mutableStateOf(null)
     }
 
@@ -134,6 +140,8 @@ fun CameraPermissionScreen() {
         permissionState.launchMultiplePermissionRequest()
     }
 
+
+
     Scaffold { paddingValues ->
         Box(
             modifier = Modifier
@@ -142,30 +150,36 @@ fun CameraPermissionScreen() {
         ) {
             if (isPermissionGranted) {
                 // 权限已授予，显示摄像头 UI
-                CameraScreen(isRecord = isRecord.value, modifier = Modifier.padding(paddingValues), onClick = {
-                    isRecord.value = !isRecord.value
-                    if(isRecord.value) {
-                        millSeconds = System.currentTimeMillis()
-                        startRecording(context, isRecord, {
-                            fmEncoder?.endCoder()
-                            fmEncoder = null
-                        }){
-                            fmEncoder?.addAudio(it, System.currentTimeMillis() - millSeconds)
+                CameraScreen(
+                    isRecord = isRecord.value,
+                    modifier = Modifier.padding(paddingValues),
+                    startTime = millSeconds,
+                    onClick = {
+                        isRecord.value = !isRecord.value
+                        if (isRecord.value) {
+                            millSeconds = System.currentTimeMillis()
+                            startRecording(context, isRecord, {
+                                fmEncoder?.endCoder()
+                                fmEncoder = null
+                                GlobalScope.launch(Dispatchers.Main) {
+                                    onVideoUpload("/data/data/com.fm.fmmedia/files/test.mp4")
+                                }
+                            }) {
+                                fmEncoder?.addAudio(it, System.currentTimeMillis() - millSeconds)
+                            }
                         }
-                    }
-                }) { image ->
-                    if(fmEncoder == null)
-                     fmEncoder = FmEncoder(image.width, image.height, 0, sampleRateInHz, channelCount)
+                    }) { image, rotate ->
+                    if (fmEncoder == null)
+                        fmEncoder = FmEncoder(
+                            image.width,
+                            image.height,
+                            0,
+                            rotate,
+                            sampleRateInHz,
+                            channelCount
+                        )
 
                     fmEncoder?.addVideo(image, System.currentTimeMillis() - millSeconds)
-//                    Log.e("测试", index++.toString())
-                    //mediacodec 编码代码
-//                    if (!h264Encoder.isInit) {
-//                        h264Encoder.init(image.width, image.height, 30)
-//                    } else {
-//                        h264Encoder.encoder(image)
-////                        image.close()
-//                    }
                     image.close()
                 }
             } else {
@@ -189,7 +203,7 @@ fun CameraPermissionScreen() {
 
 
 @Composable
-fun RecordScreen() {
+fun RecordScreen(onVideoUpload: (path: String) -> Unit = {}) {
     Text(text = "record")
-    CameraPermissionScreen()
+    CameraPermissionScreen(onVideoUpload)
 }

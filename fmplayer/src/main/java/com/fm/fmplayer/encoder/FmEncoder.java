@@ -9,7 +9,7 @@ public class FmEncoder {
     static {
         System.loadLibrary("video");
     }
-    private static native void encoder(int width, int height,int format, int sampleRate, int channel);
+    private static native void encoder(String path, int width, int height,int format,int rotate, int sampleRate, int channel);
 
     private static native void addVideoFrame(byte[] data, long pts);
 
@@ -23,14 +23,17 @@ public class FmEncoder {
     private int sampleRate;
     private int channel;
 
+    private int rotate = 0;
 
-    public FmEncoder(int width, int height, int format, int sampleRate,int channel) {
+
+    public FmEncoder(int width, int height, int format, int rotate, int sampleRate,int channel) {
         this.width = width;
         this.height = height;
         this.format = format;
         this.sampleRate = sampleRate;
         this.channel = channel;
-        this.encoder(this.width, this.height, this.format, this.sampleRate, this.channel);
+        this.rotate = rotate;
+        this.encoder("/data/data/com.fm.fmmedia/files/test.mp4", this.width, this.height, this.format, this.rotate, this.sampleRate, this.channel);
     }
 
     public void addVideo(byte[] data, long milliSeconds){

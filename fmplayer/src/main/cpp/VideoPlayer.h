@@ -26,6 +26,8 @@ public:
 
     virtual void onLoading();
 
+    virtual void onRotate(int rotate);
+
 
     bool onVideoPacket(int width,int height,int format, AVPacket *packet) override;
 

@@ -21,11 +21,12 @@ import java.util.function.Consumer;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
+import javax.security.auth.login.LoginException;
 
-public class VideoRenderOES implements GLSurfaceView.Renderer{
+public class VideoRenderOES implements GLSurfaceView.Renderer {
 
-    private   String VERTEX_SHADER_CODE ;
-    private  String FRAGMENT_SHADER_CODE;
+    private String VERTEX_SHADER_CODE;
+    private String FRAGMENT_SHADER_CODE;
     private final Consumer<SurfaceTexture> initCompleteRunnable;
 
 
@@ -40,7 +41,7 @@ public class VideoRenderOES implements GLSurfaceView.Renderer{
             0.0f, 0.0f, 1.0f, 0.0f,
             0.0f, 0.0f, 0.0f, 1.0f
     };
-    private int orientation = 0;
+    private int orientation = 270;
     private int width;
     private int height;
     private int newHeight;
@@ -85,7 +86,6 @@ public class VideoRenderOES implements GLSurfaceView.Renderer{
     private int yTexture;
 
 
-
     private Context mContext;
     private static final float SQUARE_SIZE = 1.0f;
     private static final float[] SQUARE_COORDINATES = {-SQUARE_SIZE, SQUARE_SIZE, 0.0f,   // top left
@@ -94,7 +94,6 @@ public class VideoRenderOES implements GLSurfaceView.Renderer{
             SQUARE_SIZE, SQUARE_SIZE, 0.0f}; // top right
 
     private static final short[] DRAW_ORDER = {0, 1, 2, 0, 2, 3};
-
 
 
     private static final float[] TEXTURE_COORDINATES = {0.0f, 1.0f, 0.0f, 1.0f,
@@ -109,8 +108,7 @@ public class VideoRenderOES implements GLSurfaceView.Renderer{
     int[] textures = new int[1];
 
 
-
-    public VideoRenderOES(Context context, int width, int height,Consumer<SurfaceTexture> initCompleteRunnable) {
+    public VideoRenderOES(Context context, int width, int height, Consumer<SurfaceTexture> initCompleteRunnable) {
 //        this.width = width;
 //        this.height = height;
         this.imageWidth = width;
@@ -150,7 +148,6 @@ public class VideoRenderOES implements GLSurfaceView.Renderer{
         vertexBuffer.put(SQUARE_COORDINATES);
         vertexBuffer.position(0);
     }
-
 
 
     public void genShaders() {
@@ -202,7 +199,7 @@ public class VideoRenderOES implements GLSurfaceView.Renderer{
 
 
     public void orientation() {
-        this.imageTextureTransform = new float[]{
+        this.videoTextureTransform = new float[]{
                 1.0f, 0.0f, 0.0f, 0.0f,
                 0.0f, -1.0f, 0.0f, 0.0f,
                 0.0f, 0.0f, 1.0f, 0.0f,
@@ -210,18 +207,18 @@ public class VideoRenderOES implements GLSurfaceView.Renderer{
         };
 //        Log.e("orientation", String.valueOf(this.orientation));
         if (this.orientation == 90) {
-            Matrix.rotateM(imageTextureTransform, 0, 90, 0, 0, 1);
-            Matrix.translateM(imageTextureTransform, 0, 0, -1, 0);
+            Matrix.rotateM(videoTextureTransform, 0, 90, 0, 0, 1);
+            Matrix.translateM(videoTextureTransform, 0, 0, -1, 0);
         }
 
         if (this.orientation == 180) {
-            Matrix.rotateM(imageTextureTransform, 0, 180, 0, 0, 1);
-            Matrix.translateM(imageTextureTransform, 0, -1, -1, 0);
+            Matrix.rotateM(videoTextureTransform, 0, 180, 0, 0, 1);
+            Matrix.translateM(videoTextureTransform, 0, -1, -1, 0);
         }
 
         if (this.orientation == 270) {
-            Matrix.rotateM(imageTextureTransform, 0, 270, 0, 0, 1);
-            Matrix.translateM(imageTextureTransform, 0, -1, 0, 0);
+            Matrix.rotateM(videoTextureTransform, 0, 270, 0, 0, 1);
+            Matrix.translateM(videoTextureTransform, 0, -1, 0, 0);
         }
     }
 
@@ -233,10 +230,15 @@ public class VideoRenderOES implements GLSurfaceView.Renderer{
     }
 
     public void draw(int width, int height) {
-        this.imageHeight = height;
-        this.imageWidth = width;
-
+        if(this.orientation == 90 || this.orientation == 270){
+            this.imageHeight = width;
+            this.imageWidth = height;
+        } else {
+            this.imageHeight = height;
+            this.imageWidth = width;
+        }
     }
+
     private void adjustViewport(int imageWidth, int imageHeight) {
         float surfaceAspect = (float) (height / (float) width);
         float videoAspect = imageHeight / (float) imageWidth;
@@ -286,13 +288,15 @@ public class VideoRenderOES implements GLSurfaceView.Renderer{
         surfaceTexture.updateTexImage();
 
 //        if (adjustViewport)
+
         adjustViewport(imageWidth, imageHeight);
-        GLES20.glUniform1f(GLES20.glGetUniformLocation(mProgram, "width"), (float)(this.newWidth));
 
-        GLES20.glUniform1f(GLES20.glGetUniformLocation(mProgram, "height"), (float)this.height);
 
-        GLES20.glUniform1f(GLES20.glGetUniformLocation(mProgram, "status"), (float)isBgr);
+        GLES20.glUniform1f(GLES20.glGetUniformLocation(mProgram, "width"), (float) (this.newWidth));
 
+        GLES20.glUniform1f(GLES20.glGetUniformLocation(mProgram, "height"), (float) this.height);
+
+        GLES20.glUniform1f(GLES20.glGetUniformLocation(mProgram, "status"), (float) isBgr);
 
 
         // Draw texture
@@ -317,12 +321,13 @@ public class VideoRenderOES implements GLSurfaceView.Renderer{
         GLES20.glEnableVertexAttribArray(textureCoordinateHandle);
         GLES20.glVertexAttribPointer(textureCoordinateHandle, 4, GLES20.GL_FLOAT, false, 0, textureBuffer);
 
-        this.videoTextureTransform = new float[]{
-                1.0f ,0.0f ,0.0f ,0.0f ,
-                0.0f ,-1.0f ,0.0f ,0.0f ,
-                0.0f ,0.0f ,1.0f ,0.0f ,
-                0.0f ,1.0f ,0.0f ,1.0f ,
-        };
+//        this.videoTextureTransform = new float[]{
+//                1.0f ,0.0f ,0.0f ,0.0f ,
+//                0.0f ,-1.0f ,0.0f ,0.0f ,
+//                0.0f ,0.0f ,1.0f ,0.0f ,
+//                0.0f ,1.0f ,0.0f ,1.0f ,
+//        };
+        this.orientation();
 
         GLES20.glUniformMatrix4fv(textureTranformHandle, 1, false, videoTextureTransform, 0);
         Matrix.scaleM(mMvpMatrix, 0, 1.5f, 1.5f, 1.5f);
@@ -334,6 +339,16 @@ public class VideoRenderOES implements GLSurfaceView.Renderer{
     }
 
     public void setOrientation(int orientation) {
+
         this.orientation = orientation;
+        if (this.orientation == 90 || this.orientation == 270) {
+            Log.e("测试", "设置多次");
+            int tmpWidth = this.imageWidth;
+            this.imageWidth = this.imageHeight;
+            this.imageHeight = tmpWidth;
+//            tmpWidth = this.width;
+//            this.width = this.height;
+//            this.height = tmpWidth;
+        }
     }
 }

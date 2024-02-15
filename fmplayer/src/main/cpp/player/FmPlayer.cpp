@@ -87,7 +87,6 @@ namespace fm {
             videoFrameFull.notify_one();
             audioFull.notify_one();
             audioFrameFull.notify_one();
-
         }
         while (this->signal != 0) {
 //            qDebug() << "signal:" << this->signal
@@ -170,7 +169,19 @@ namespace fm {
                         avPacket = avPacketQueue.front();
                         if (videoCodecContext == nullptr)
                             videoCodecContext = avPacketData.getAvCodecContext();
-                        if (videoStream == nullptr) videoStream = avPacketData.getAvStream();
+                        if (videoStream == nullptr){
+                            videoStream = avPacketData.getAvStream();
+                            AVDictionaryEntry *tag = NULL;
+                            int   m_Rotate= 0;
+
+                            uint8_t *displaymatrix = av_stream_get_side_data(videoStream, AV_PKT_DATA_DISPLAYMATRIX, NULL);
+                            if (displaymatrix) {
+                                double theta = -av_display_rotation_get((int32_t *) displaymatrix);
+                                theta -= 360 * floor(theta / 360 + 0.9 / 360);
+                                m_Rotate = (int)theta;
+                            }
+                            this->callAvFrame->onRotate(m_Rotate);
+                        }
                         this->videoPacketQueue.push(avPacket);
                     }
                     std::unique_lock<std::mutex> fullLock(fullVideoMutex);
@@ -223,7 +234,6 @@ namespace fm {
                     continue;
                 }
             }
-
 
             AVPacket *avPacket = nullptr;
             {

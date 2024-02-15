@@ -24,6 +24,7 @@ extern "C" {
 #include <libswscale/swscale.h>
 #include <libswresample/swresample.h>
 #include "libavutil/time.h"
+#include "libavutil/display.h"
 
 }
 namespace fm {
@@ -38,6 +39,7 @@ namespace fm {
 
         /* pts of the next frame that will be generated */
         int64_t next_pts;
+        int64_t prev_pts;
         int samples_count;
 
         AVFrame *frame;
@@ -71,7 +73,7 @@ namespace fm {
 
     class FmEncoder {
     public:
-        FmEncoder(const char* input, int width, int height, AVPixelFormat format, int sample_rate, int channels);
+        FmEncoder(const char* input, int width, int height, AVPixelFormat format,int rotate, int sample_rate, int channels);
         bool init();
         int encoder_video_frame(char* data, int dataLength, long seconds);
         int encoder_audio_frame(int16_t * data, int dataLength, long seconds);
@@ -84,6 +86,7 @@ namespace fm {
         const char* output;
         int width;
         int height;
+        int rotate = 0;
         int isExit = false;
         int imageIndex = 0;
         int sample_rate;
@@ -118,6 +121,14 @@ namespace fm {
         AVFrame *alloc_audio_frame(enum AVSampleFormat sample_fmt,
                                    const AVChannelLayout *channel_layout,
                                    int sample_rate, int nb_samples);
+
+        AVFilterContext *buffersrc_ctx;
+        AVFilterContext *buffersink_ctx;
+        AVFilterGraph *filter_graph;
+
+        /**
+         * 设置旋转角度
+         */
         void open_audio(AVFormatContext *oc, const AVCodec *codec,
                         OutputStream *ost, AVDictionary *opt_arg);
         OutputStream video_st = { 0 }, audio_st = { 0 };

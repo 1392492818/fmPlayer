@@ -39,12 +39,17 @@ bool compareFileSizes(const fs::directory_entry &file1, const fs::directory_entr
 
 fm::VideoCache::VideoCache(string path, string url) {
     this->path = path;
-    fs::remove_all(this->path);
-    if (!directoryExists(path)) {
-        if (!createDirectory(path)) {
-            return;
+    try {
+        fs::remove_all(this->path);
+        if (!directoryExists(path)) {
+            if (!createDirectory(path)) {
+                return;
+            }
         }
+    } catch (...) {
+        LOGE("删除异常");
     }
+
 }
 
 void fm::VideoCache::cachePacket(AVPacket *avPacket, AVRational time_base) {
@@ -53,8 +58,8 @@ void fm::VideoCache::cachePacket(AVPacket *avPacket, AVRational time_base) {
     int streamIndex = avPacket->stream_index;
     int64_t pts = avPacket->pts;
 
-    int64_t endTimeBase = (double)((double) pts * av_q2d(time_base)) * 1000;
-    if(this->endTimeBase < endTimeBase){
+    int64_t endTimeBase = (double) ((double) pts * av_q2d(time_base)) * 1000;
+    if (this->endTimeBase < endTimeBase) {
         this->endTimeBase = endTimeBase;
     }
     AVPacket *packetInfo = av_packet_alloc();
@@ -76,19 +81,19 @@ void fm::VideoCache::cachePacket(AVPacket *avPacket, AVRational time_base) {
 }
 
 AVPacket *fm::VideoCache::readPacket() {
-//    LOGE("readpacket");
-    std::unique_lock<std::mutex> emptyLock(cacheEmptyMutex); //数据为空就先不处理
-    packetQueueEmptyCondition.wait(emptyLock,
-                                   [&] {
-                                       return !packetQueue.empty();
-                                   });
-
+    if (!this->isEnd) {
+        std::unique_lock<std::mutex> emptyLock(cacheEmptyMutex); //数据为空就先不处理
+        packetQueueEmptyCondition.wait(emptyLock,
+                                       [&] {
+                                           return !packetQueue.empty();
+                                       });
+    }
     lock_guard lock(cacheMutex);
     //非空判断
     if (packetQueue.empty()) {
         return nullptr;
     }
-    AVPacket* packetInfo = packetQueue.front();
+    AVPacket *packetInfo = packetQueue.front();
     packetQueue.pop();
     int streamIndex = packetInfo->stream_index;
     int64_t pts = packetInfo->pts;
@@ -107,7 +112,7 @@ AVPacket *fm::VideoCache::readPacket() {
 
 
     av_packet_copy_props(packet, packetInfo);
-    packet->data = (unsigned char*)data;
+    packet->data = (unsigned char *) data;
     packet->size = packetInfo->size;
     packet->stream_index = packetInfo->stream_index;
     av_packet_free(&packetInfo);
@@ -135,20 +140,20 @@ void fm::VideoCache::writeCacheFile() {
 //    }
 }
 
-const queue<AVPacket*> &fm::VideoCache::getPacketQueue() const {
+const queue<AVPacket *> &fm::VideoCache::getPacketQueue() const {
     return packetQueue;
 }
 
 bool fm::VideoCache::seekVideoCache(int64_t time) {
     lock_guard lock(cacheMutex);
     time = time * 1000;
-    if(packetQueue.empty()) return false;
+    if (packetQueue.empty()) return false;
     AVPacket *packet = packetQueue.front();
-    int64_t startTimeBase = (double)((double) packet->pts * av_q2d(packet->time_base)) * 1000;
+    int64_t startTimeBase = (double) ((double) packet->pts * av_q2d(packet->time_base)) * 1000;
     LOGE("start %lld, time %lld, timeBase %lld", startTimeBase, time, this->endTimeBase);
 
-    if(time < startTimeBase || time > this->endTimeBase) {
-        std::queue<AVPacket*> emptyQueue;
+    if (time < startTimeBase || time > this->endTimeBase) {
+        std::queue<AVPacket *> emptyQueue;
         std::swap(packetQueue, emptyQueue);
         LOGE("范围找不到缓存");
         return false;
@@ -156,8 +161,8 @@ bool fm::VideoCache::seekVideoCache(int64_t time) {
 
     while (!packetQueue.empty()) {
         packet = packetQueue.front();
-        startTimeBase = (double)((double) packet->pts * av_q2d(packet->time_base)) * 1000;
-        if(startTimeBase >= time && packet->flags == AV_PKT_FLAG_KEY){
+        startTimeBase = (double) ((double) packet->pts * av_q2d(packet->time_base)) * 1000;
+        if (startTimeBase >= time && packet->flags == AV_PKT_FLAG_KEY) {
             LOGE("找到缓存");
             return true;
         }
@@ -170,6 +175,11 @@ bool fm::VideoCache::seekVideoCache(int64_t time) {
 
 int64_t fm::VideoCache::getEndTimeBase() const {
     return endTimeBase;
+}
+
+void fm::VideoCache::setIsEnd(bool isEnd) {
+    packetQueueEmptyCondition.notify_one();
+    this->isEnd = isEnd;
 }
 
 
@@ -218,5 +228,7 @@ int fm::PacketInfo::getSideDataElems() const {
 const AVRational &fm::PacketInfo::getTimeBase() const {
     return timeBase;
 }
+
+
 
 

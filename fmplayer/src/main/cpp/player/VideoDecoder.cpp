@@ -185,7 +185,6 @@ namespace fm {
         AVPacketData avPacketData;
         std::queue<AVPacket *> avPacketQueue;
 
-
         if (this->videoCache->getPacketQueue().size() == 0 && isError) {
             LOGE("出错了");
             avPacketData.setIsEnd(true);
@@ -193,10 +192,15 @@ namespace fm {
             return avPacketData;
         }
         AVPacket *packet = videoCache->readPacket();
-        if (this->videoCache->getPacketQueue().size() == 0 && this->isEnd) {
-            avPacketData.setIsEnd(this->isEnd);
+        if (packet != nullptr) {
+            if (this->videoCache->getPacketQueue().size() == 0 && this->isEnd) {
+                avPacketData.setIsEnd(this->isEnd);
+            } else {
+                avPacketData.setIsEnd(false);
+            }
         } else {
-            avPacketData.setIsEnd(false);
+            this->isEnd = true;
+            avPacketData.setIsEnd(this->isEnd);
         }
         if (packet != nullptr) {
             for (StreamInfo *streamInfo: streamInfos) {
@@ -321,16 +325,17 @@ namespace fm {
         LOGE("VideoDecoder::seek %lld isEnd %d", time / AV_TIME_BASE, this->isEnd);
         if (this->formatContext != nullptr && !isEnd) {
             if (!videoCache->seekVideoCache(
-                    time / AV_TIME_BASE)) { // 从缓存中提取数据，看下有没有，如果没有，就请求，有就执行执行就可以, 另外情况， av_read_frame 已经结束了
+                    time /
+                    AV_TIME_BASE)) { // 从缓存中提取数据，看下有没有，如果没有，就请求，有就执行执行就可以, 另外情况， av_read_frame 已经结束了
 
-                    if (av_seek_frame(formatContext, -1, time, AVSEEK_FLAG_BACKWARD) < 0) {
-                        fprintf(stderr, "Seek error\n");
-                        return;
-                    }
+                if (av_seek_frame(formatContext, -1, time, AVSEEK_FLAG_BACKWARD) < 0) {
+                    fprintf(stderr, "Seek error\n");
+                    return;
+                }
 
-                    for (StreamInfo *streamInfo: streamInfos) {
-                        avcodec_flush_buffers(streamInfo->getCodecContext());
-                    }
+                for (StreamInfo *streamInfo: streamInfos) {
+                    avcodec_flush_buffers(streamInfo->getCodecContext());
+                }
             }
         }
     }
@@ -472,6 +477,7 @@ namespace fm {
         } else {
             this->isEnd = true;
         }
+        this->videoCache->setIsEnd(true);
         isExit = true;
     }
 

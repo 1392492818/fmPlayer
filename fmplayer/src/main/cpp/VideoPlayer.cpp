@@ -159,6 +159,15 @@ void VideoPlayer::release() {
 //    g_VM->DetachCurrentThread();
 }
 
+void VideoPlayer::onRotate(int rotate) {
+    JNIEnv *env;
+    g_VM->AttachCurrentThread(&env, nullptr);
+    jclass callbackClass = env->GetObjectClass(jobject1);
+    jmethodID onRotate = env->GetMethodID(callbackClass, "onRotate", "(I)V");
+    env->CallVoidMethod(jobject1, onRotate, rotate);
+    g_VM->DetachCurrentThread();
+}
+
 
 
 

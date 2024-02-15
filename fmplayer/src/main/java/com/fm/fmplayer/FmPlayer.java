@@ -17,6 +17,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import javax.security.auth.login.LoginException;
+
 @RequiresApi(api = Build.VERSION_CODES.Q)
 public class FmPlayer implements FmPlayerDataCallback {
     static {
@@ -38,6 +40,18 @@ public class FmPlayer implements FmPlayerDataCallback {
 
     private boolean isSeek = false;
 
+    public void setLoop(boolean loop) {
+        isLoop = loop;
+    }
+
+    private boolean isLoop = false;
+
+    private String url;
+
+    private String cachePath;
+
+    private long time = 0;
+
     public native void seek(String id, long time);
 
     private AudioTrack audioTrack;
@@ -50,7 +64,7 @@ public class FmPlayer implements FmPlayerDataCallback {
     ExecutorService executorService;
 
     public FmPlayer() {
-        Log.e(TAG, " 执行多次");
+//        Log.e(TAG, " 执行多次");
         this.id = UUID.randomUUID().toString().replace("-", "");
         taskQueue = new LinkedBlockingQueue<>(10);
         executorService = Executors.newSingleThreadExecutor();
@@ -120,20 +134,18 @@ public class FmPlayer implements FmPlayerDataCallback {
     }
 
 
-    public void start(String url, Surface surface, FmGLSurfaceView fmGLSurfaceView, PlayerCallback playerCallback, long time, String cachePath) {
+    public void start(String url, Surface surface, FmGLSurfaceView fmGLSurfaceView, PlayerCallback playerCallback, long time, String cache) {
         Log.e(TAG, id);
         this.surface = surface;
         this.playerCallback = playerCallback;
         this.fmGLSurfaceView = fmGLSurfaceView;
-        executorService.submit(new Runnable() {
-            @Override
-            public void run() {
-                startPlayer(url, FmPlayer.this, id, time, cachePath + "/video_cache/" +Md5.encoder(url));
-            }
-        });
+        this.url = url;
+        this.cachePath = cache + "/video_cache/" +Md5.encoder(url);
+        this.startPlayer();
     }
 
     public void release() {
+        isLoop = false;
         if (this.executorService.isShutdown()) return;
         this.executorService.submit(new Runnable() {
             @Override
@@ -165,6 +177,7 @@ public class FmPlayer implements FmPlayerDataCallback {
     @Override
     public void onVideoFrame(int width, int height, byte[] yData, byte[] uData, byte[] vData) {
         stopLoading();
+//        Log.e(TAG, "onVideoFrame");
         if (playerCallback != null) playerCallback.softwareDecoder();
         if (playerCallback != null) playerCallback.voidInfo(width, height);
         if (fmGLSurfaceView != null) fmGLSurfaceView.draw(width, height, yData, uData, vData);
@@ -173,6 +186,7 @@ public class FmPlayer implements FmPlayerDataCallback {
     @Override
     public void onAudioFrame(byte[] audioData, int sampleRate, int nbSamples, int channels, int avSampleFormat, int dataSize) {
         stopLoading();
+//        Log.e(TAG, "onAudioFrame");
         try {
             if (this.audioTrack == null) {
                 int audioFormat = avSampleFormat % 4 + 1;
@@ -207,6 +221,8 @@ public class FmPlayer implements FmPlayerDataCallback {
     @Override
     public boolean onVideoPacket(int width, int height, int format, byte[] packet) {
         stopLoading();
+//        Log.e(TAG, "onVideoPacket");
+
         if (playerCallback != null) playerCallback.voidInfo(width, height);
         if (fmDecoder == null) {
             fmDecoder = new FmDecoder();
@@ -223,11 +239,29 @@ public class FmPlayer implements FmPlayerDataCallback {
         return fmDecoder.onPacket(packet);
     }
 
+    private void startPlayer(){
+        executorService.submit(new Runnable() {
+            @Override
+            public void run() {
+                startPlayer(url, FmPlayer.this, id, time, cachePath);
+            }
+        });
+    }
+
     @Override
     public void onEnd(boolean isError) {
+        if(!isError && isLoop){
+            startPlayer();
+            play();
+            return;
+        }
         playerCallback.end(isError);
     }
 
+    @Override
+    public void onRotate(int rotate) {
+        playerCallback.rotate(rotate);
+    }
 
 
     @Override

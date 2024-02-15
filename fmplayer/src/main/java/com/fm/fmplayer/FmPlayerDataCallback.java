@@ -7,5 +7,7 @@ public interface FmPlayerDataCallback {
     public boolean onVideoPacket(int width, int height,int format, byte[] packet);
     public void onEnd(boolean isError);
 
+    public void onRotate(int rotate);
+
     public void onLoading();
 }

@@ -66,70 +66,96 @@ fun formatSecondsToHHMMSS(seconds: Long): String {
 }
 
 
+fun formatSecondsToMMSS(seconds: Long): String {
+    val hours = seconds / 3600
+    val minutes = (seconds % 3600) / 60
+    val remainingSeconds = seconds % 60
+
+    return String.format("%02d:%02d", minutes, remainingSeconds)
+}
+
 @RequiresApi(Build.VERSION_CODES.Q)
 @SuppressLint("ViewConstructor")
-class FmGlView(context: Context, url:String, seekTime:Long,cachePath:String, progress:(currentPosition:Long, duration:Long,cache:Long, isSeek:Boolean)->Unit, endCallback:(isError:Boolean)->Unit = {}, onLoading: ()->Unit) : GLSurfaceView(context),PlayerCallback {
+class FmGlView(
+    context: Context,
+    url: String,
+    seekTime: Long,
+    cachePath: String,
+    progress: (currentPosition: Long, duration: Long, cache: Long, isSeek: Boolean) -> Unit,
+    isLoop: Boolean = false,
+    isLocalFile: Boolean = false,
+    endCallback: (isError: Boolean) -> Unit = {},
+    onLoading: () -> Unit = {}
+) : GLSurfaceView(context), PlayerCallback {
     private lateinit var videoRenderOES: VideoRenderOES;
     private lateinit var surface: Surface;
-    private val TAG:String = FmGlView::class.simpleName.toString();
-    private var  fmPlayer:FmPlayer = FmPlayer();
+    private val TAG: String = FmGlView::class.simpleName.toString();
+    private var fmPlayer: FmPlayer = FmPlayer();
     private val baseUrl = BuildConfig.VIDEO_URL;
-    var callback: (currentPosition:Long, duration:Long, cache:Long, isSeek: Boolean)->Unit;
-    var endCallback: (isError:Boolean)->Unit;
-    var onLoading: ()->Unit;
-    var seekTime:Long
-    var cachePath:String
+    var callback: (currentPosition: Long, duration: Long, cache: Long, isSeek: Boolean) -> Unit;
+    var endCallback: (isError: Boolean) -> Unit;
+    var onLoading: () -> Unit;
+    var seekTime: Long
+    var cachePath: String
+    var isLoop = false
+
     init {
         this.setEGLContextClientVersion(2)
         this.cachePath = cachePath
         callback = progress;
         this.seekTime = seekTime
         this.endCallback = endCallback
+        this.isLoop = isLoop
         this.onLoading = onLoading
-        val sourceUrl = baseUrl + url
+        var sourceUrl =  baseUrl + url
+        if (isLocalFile){
+            sourceUrl = url
+        }
 
         videoRenderOES = VideoRenderOES(context, this.width, this.height) { videoTexture ->
             this.surface = Surface(videoTexture)
+            Log.e(TAG, "开始播放")
             startPlayer(sourceUrl)
         }
         this.setRenderer(videoRenderOES)
     }
 
-    fun startPlayer(source:String){
+    fun startPlayer(source: String) {
         fmPlayer.start(source, this.surface, null, this, seekTime, this.cachePath)
+        fmPlayer.setLoop(this.isLoop)
         fmPlayer.play()
 //        fmPlayer.seek(seekTime)
     }
 
-    fun reset(source: String, seekTime: Long = 0){
-        try{
+    fun reset(source: String, seekTime: Long = 0) {
+        try {
             this.seekTime = seekTime
             fmPlayer.release()
             fmPlayer = FmPlayer()
-            startPlayer(baseUrl+source)
-        }catch (e:Exception){
+            startPlayer(baseUrl + source)
+        } catch (e: Exception) {
 
         }
-
     }
 
-    fun release(){
+    fun release() {
         Log.e(TAG, "停止")
         fmPlayer.release()
     }
 
-    fun pause(){
+    fun pause() {
         fmPlayer.pause()
     }
+
     fun play() {
         fmPlayer.play()
     }
 
-    fun seek(time:Long) {
+    fun seek(time: Long) {
         fmPlayer.seek(time)
     }
 
-    fun setSpeed(speed: Float){
+    fun setSpeed(speed: Float) {
         fmPlayer.setSpeed(speed)
     }
 
@@ -137,6 +163,11 @@ class FmGlView(context: Context, url:String, seekTime:Long,cachePath:String, pro
     }
 
     override fun softwareDecoder() {
+    }
+
+    override fun rotate(rotate: Int) {
+        Log.e("测hi是", "${rotate}")
+        videoRenderOES.setOrientation(rotate);
     }
 
     override fun loading() {
@@ -147,7 +178,7 @@ class FmGlView(context: Context, url:String, seekTime:Long,cachePath:String, pro
         this.videoRenderOES.draw(width, height)
     }
 
-    override fun progress(currentTime: Long, duration: Long,cache: Long, isSeek:Boolean) {
+    override fun progress(currentTime: Long, duration: Long, cache: Long, isSeek: Boolean) {
         this.callback(currentTime, duration, cache, isSeek);
     }
 

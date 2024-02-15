@@ -10,6 +10,8 @@ extern "C" {
 #include "libavutil/avutil.h"
 #include <libavutil/pixfmt.h>
 #include <libavutil/imgutils.h>
+#include "libavutil/display.h"
+
 }
 class CallAVFrame{
 public:
@@ -18,6 +20,7 @@ public:
     virtual void onAudioFrame(AVFrame* avFrame, int channels, AVSampleFormat avSampleFormat, int dataSize) = 0;
     virtual void onProgress(int64_t time, int64_t currentTime, int64_t cacheTime) = 0;
     virtual void onEnd(bool isError) = 0;
+    virtual void onRotate(int rotate) = 0;
     virtual void release() = 0;
     virtual void onLoading() = 0;
 };

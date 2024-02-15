@@ -27,6 +27,7 @@ import com.fm.fmmedia.ui.home.homeScreen
 import com.fm.fmmedia.ui.live.liveScreen
 import com.fm.fmmedia.ui.profile.profileScreen
 import com.fm.fmmedia.ui.record.RecordScreen
+import com.fm.fmmedia.ui.record.VideoEditScreen
 import com.fm.fmmedia.ui.theme.FmMediaTheme
 import com.fm.fmmedia.ui.video.videoScreen
 import com.fm.fmmedia.viewmodel.AccessTokenViewModel
@@ -34,6 +35,7 @@ import com.fm.fmmedia.viewmodel.LoginViewModel
 import com.fm.fmmedia.viewmodel.MemberInfoViewModel
 import com.fm.fmmedia.viewmodel.VideoCategoryViewModel
 import com.fm.fmmedia.viewmodel.VideoGroupViewModel
+import java.net.URLEncoder
 
 
 @Composable
@@ -161,7 +163,13 @@ fun fmNavHost(
             registerScreen()
         }
         composable(route = Screen.ReCord.route){
-            RecordScreen()
+            RecordScreen(onVideoUpload = {path->
+                navController.navigate(Screen.VideoEdit.createRoute(URLEncoder.encode(path, "utf-8")))
+            })
+        }
+        composable(route = Screen.VideoEdit.route,  arguments = Screen.VideoEdit.navArguments) {
+            val path: String? = it.arguments?.getString("path")
+            path?.let { it1 -> VideoEditScreen(it1) }
         }
         composable(
             route = Screen.ForgetPassword.route,
@@ -181,6 +189,11 @@ fun fmNavHost(
                     navController.navigate(Screen.Video.createRoute(id))
                 }
             )
+            navController.navigate(Screen.VideoEdit.createRoute(URLEncoder.encode("/data/data/com.fm.fmmedia/files/test.mp4", "utf-8")))
+
+//            RecordScreen(onVideoUpload = {path->
+//                navController.navigate(Screen.VideoEdit.createRoute(URLEncoder.encode(path, "utf-8")))
+//            })
         }
         composable(route = Screen.Live.route) {
             liveScreen(navController = navController)

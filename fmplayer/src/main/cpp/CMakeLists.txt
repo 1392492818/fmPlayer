@@ -75,6 +75,8 @@ add_library( # Sets the name of the library.
         video.cpp
         VideoPlayer.cpp
         VideoPlayer.h
+        VideoPlayerManager.cpp
+        VideoPlayerManager.h
         player/CallAVFrame.h
         player/FmPlayer.cpp
         player/FmPlayer.h
