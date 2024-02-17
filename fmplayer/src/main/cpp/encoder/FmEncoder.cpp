@@ -4,7 +4,8 @@
 
 #include "FmEncoder.h"
 
-fm::FmEncoder::FmEncoder(const char *outputPath, int width, int height, AVPixelFormat format,int rotate,
+fm::FmEncoder::FmEncoder(const char *outputPath, int width, int height, AVPixelFormat format,
+                         int rotate,
                          int sample_rate, int channels) {
     this->output = outputPath;
     this->width = width;
@@ -266,9 +267,10 @@ void fm::FmEncoder::add_stream(OutputStream *ost, AVFormatContext *oc,
              * identical to 1. */
             ost->st->time_base = (AVRational) {1, STREAM_FRAME_RATE};
 //            av_dict_set(&ost->st->metadata,"rotate","90",0);
-            sidedata = av_stream_new_side_data(ost->st, AV_PKT_DATA_DISPLAYMATRIX, sizeof(int32_t) * 9);
+            sidedata = av_stream_new_side_data(ost->st, AV_PKT_DATA_DISPLAYMATRIX,
+                                               sizeof(int32_t) * 9);
             if (sidedata) {
-                av_display_rotation_set((int32_t *)sidedata, rotate);
+                av_display_rotation_set((int32_t *) sidedata, rotate);
             }
 
             c->time_base = ost->st->time_base;
@@ -299,9 +301,10 @@ void fm::FmEncoder::add_stream(OutputStream *ost, AVFormatContext *oc,
 
 
 int fm::FmEncoder::write_frame(AVFormatContext *fmt_ctx, AVCodecContext *c,
-                               AVStream *st, AVFrame *frame, AVPacket *pkt) {
+                               AVStream *st, AVFrame *frame, AVPacket *pkt, int64_t *prev_packet_pts) {
     int ret;
-
+    //避免音频跟视频同时写入
+    std::lock_guard lockGuard(writeFrameMutex);
     // send the frame to the encoder
     ret = avcodec_send_frame(c, frame);
     if (ret < 0) {
@@ -324,14 +327,23 @@ int fm::FmEncoder::write_frame(AVFormatContext *fmt_ctx, AVCodecContext *c,
         pkt->stream_index = st->index;
         /* Write the compressed frame to the media file. */
         //log_packet(fmt_ctx, pkt);
-        ret = av_interleaved_write_frame(fmt_ctx, pkt);
+//        if(streamIndex == 0)
+//            LOGE("video pts %lld dts %lld", pkt->pts, pkt->dts);
+//        if(streamIndex == 1)
+//            LOGE("audio pts %lld dts %lld", pkt->pts, pkt->dts);
+        if(pkt->pts < pkt->dts) {
+            LOGE("异常");
+        }
+//        ret = av_interleaved_write_frame(fmt_ctx, pkt);
+          ret = av_write_frame(fmt_ctx, pkt);
         /* pkt is now blank (av_interleaved_write_frame() takes ownership of
          * its contents and resets pkt), so that no unreferencing is necessary.
          * This would be different if one used av_write_frame(). */
         if (ret < 0) {
-            LOGE("Error while writing output packet: %s\n", av_err2str(ret));
+            LOGE("Error while writing output packet: %s ret : %d\n", av_err2str(ret), ret);
             exit(1);
         }
+        av_packet_unref(pkt);
     }
 
     return ret == AVERROR_EOF ? 1 : 0;
@@ -425,15 +437,16 @@ bool fm::FmEncoder::init() {
 
 void fm::FmEncoder::end() {
     this->isExit = true;
+    LOGE("end");
     while (true) {
         if (this->videoQueue.empty() && this->audioQueue.empty()) break;
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
     if (have_video) {
-        write_frame(oc, (&video_st)->enc, (&video_st)->st, nullptr, (&video_st)->tmp_pkt);
+        write_frame(oc, (&video_st)->enc, (&video_st)->st, nullptr, (&video_st)->tmp_pkt, &video_st.prev_packet_pts);
     }
     if (have_audio) {
-        write_frame(oc, (&audio_st)->enc, (&audio_st)->st, nullptr, (&audio_st)->tmp_pkt);
+        write_frame(oc, (&audio_st)->enc, (&audio_st)->st, nullptr, (&audio_st)->tmp_pkt, &audio_st.prev_packet_pts);
     }
 
     av_write_trailer(oc);
@@ -458,13 +471,12 @@ void fm::FmEncoder::end() {
 int fm::FmEncoder::encoder_video_frame(char *data, int dataLength, long seconds) {
     OutputStream *ost = &video_st;
     AVCodecContext *c = ost->enc;
-
     /* check if we want to generate more frames */
-    if (av_compare_ts(ost->next_pts, c->time_base,
-                      STREAM_DURATION, (AVRational) {1, 1}) > 0) {
-        LOGE("video continue");
-        return 0;
-    }
+//    if (av_compare_ts(ost->next_pts, c->time_base,
+//                      STREAM_DURATION, (AVRational) {1, 1}) > 0) {
+//        LOGE("video continue");
+//        return 0;
+//    }
 
 
     /* when we pass a frame to the encoder, it may keep a reference to it
@@ -502,16 +514,15 @@ int fm::FmEncoder::encoder_video_frame(char *data, int dataLength, long seconds)
     //视频有时候可能 帧数不够,根据生成时间来计算 pts
 //    ost->frame->pts = ost->next_pts++;
     //1、1秒25帧，根据秒数计算出实际位置
-    ost->frame->pts = (seconds) /  (1000 / STREAM_FRAME_RATE);
-    if( ost->frame->pts <= ost->prev_pts){
-       // LOGE("pts一样");
+    ost->frame->pts = (seconds) / (1000 / STREAM_FRAME_RATE);
+    if (ost->frame->pts <= ost->prev_pts) {
+        // LOGE("pts一样");
         ost->frame->pts = ost->prev_pts + 1;
     }
-    ost->prev_pts =  ost->frame->pts;
-
+    ost->prev_pts = ost->frame->pts;
+    ost->next_pts = ost->frame->pts;
 //    av_dict_set(&ost->st->metadata, "rotate", "90", 0);
-
-    return write_frame(oc, ost->enc, ost->st, ost->frame, ost->tmp_pkt);
+    return write_frame(oc, ost->enc, ost->st, ost->frame, ost->tmp_pkt, &ost->prev_packet_pts);
 
 }
 
@@ -523,8 +534,8 @@ int fm::FmEncoder::encoder_audio_frame(int16_t *data, int length, long seconds) 
 //    int frameLength = length / c->ch_layout.nb_channels;
 //
 //    for(int i = 0; i < c->ch_layout.nb_channels;i++) {
-        int16_t *audioFrame = (int16_t *) frame->data[0]; // 获取音频数据指针, 根据是数据类型，转换成相对应格式
-        memcpy(audioFrame, data, length);
+    int16_t *audioFrame = (int16_t *) frame->data[0]; // 获取音频数据指针, 根据是数据类型，转换成相对应格式
+    memcpy(audioFrame, data, length);
 //    }
 
     int dst_nb_samples = av_rescale_rnd(
@@ -536,26 +547,27 @@ int fm::FmEncoder::encoder_audio_frame(int16_t *data, int length, long seconds) 
      * make sure we do not overwrite it here
      */
     ret = av_frame_make_writable(ost->frame);
-    if (ret < 0)
+    if (ret < 0) {
         exit(1);
+    }
     /* convert to destination format */
     ret = swr_convert(ost->swr_ctx,
                       ost->frame->data, frame->nb_samples,
                       (const uint8_t **) frame->data, frame->nb_samples);
     if (ret < 0) {
-        fprintf(stderr, "Error while converting\n");
+        LOGE("Error while converting\n");
         exit(1);
     }
     frame = ost->frame;
 //    frame->pts = av_rescale_q(ost->samples_count, (AVRational) {1, c->sample_rate}, c->time_base);
     frame->pts = seconds * (c->sample_rate / 1000.0);
-    if(frame->pts <= ost->prev_pts){
+    if (frame->pts <= ost->prev_pts) {
 //        LOGE("pts一样");
         frame->pts = ost->prev_pts + 1;
     }
     ost->prev_pts = frame->pts;
     ost->samples_count += dst_nb_samples;
-    return write_frame(oc, ost->enc, ost->st, frame, ost->tmp_pkt);
+    return write_frame(oc, ost->enc, ost->st, frame, ost->tmp_pkt, &ost->prev_packet_pts);
 }
 
 void fm::FmEncoder::add_video_frame(char *data, int dataLength, long seconds) {
@@ -604,8 +616,6 @@ void fm::FmEncoder::start_encoder_audio() {
         this->audioQueue.pop();
     }
 }
-
-
 
 
 fm::FrameInfo::FrameInfo(char *data, int dataLength, long seconds) : data(data),

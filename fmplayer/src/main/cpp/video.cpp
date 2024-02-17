@@ -11,14 +11,12 @@
 #include "VideoPlayerManager.h"
 #include <android/bitmap.h>
 #include <unordered_map>
+#include "VideoEncoderManager.h"
 
 
 JavaVM *g_VM;
-std::unordered_map<std::string, FmPlayerStruct> playerHashMap;
-std::mutex player; // 保证队列进出不影响
-std::mutex encoder;
+std::unique_ptr<VideoEncoderManager> videoEncoderManager = std::make_unique<VideoEncoderManager>();
 std::unique_ptr<VideoPlayerManager> videoPlayerManager = std::make_unique<VideoPlayerManager>();
-fm::FmEncoder *fmEncoder = nullptr;
 
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
     g_VM = vm;  // 保存 JavaVM 指针到全局变量
@@ -173,18 +171,12 @@ Java_com_fm_fmplayer_encoder_FmEncoder_encoder(JNIEnv *env, jclass thiz, jstring
                                                jint height,
                                                jint format, jint rotate, jint sample_rate,
                                                jint channel) {
-    // TODO: implement encoder()
-
-    std::lock_guard<std::mutex> lockGuard(encoder);
     const char *str = env->GetStringUTFChars(path, NULL);
 
-    fmEncoder = new fm::FmEncoder(str,
-                                  width,
-                                  height, static_cast<AVPixelFormat>(format), rotate, sample_rate,
-                                  channel);
+    videoEncoderManager->init(const_cast<char *>(str), width, height,
+                              static_cast<AVPixelFormat>(format), rotate, sample_rate, channel);
     env->ReleaseStringUTFChars(path, str);
 
-    fmEncoder->init();
 }
 
 
@@ -192,17 +184,10 @@ extern "C"
 JNIEXPORT void JNICALL
 Java_com_fm_fmplayer_encoder_FmEncoder_addVideoFrame(JNIEnv *env, jclass thiz, jbyteArray data,
                                                      jlong seconds) {
-    // TODO: implement addVideoFrame()
-    {
-        std::lock_guard<std::mutex> lockGuard(encoder);
-        if (fmEncoder == nullptr) {
-            return;
-            LOGE("视频null");
-        }
-    }
+
     jsize len = env->GetArrayLength(data);
     jbyte *bytes = env->GetByteArrayElements(data, NULL);
-    fmEncoder->add_video_frame(reinterpret_cast<char *>(bytes), len, seconds);
+    videoEncoderManager->addVideoFrame(reinterpret_cast<char *>(bytes), len, seconds);
 
     env->ReleaseByteArrayElements(data, bytes, JNI_ABORT);
 }
@@ -211,19 +196,10 @@ extern "C"
 JNIEXPORT void JNICALL
 Java_com_fm_fmplayer_encoder_FmEncoder_addAudioFrame(JNIEnv *env, jclass thiz, jbyteArray data,
                                                      jlong seconds) {
-    // TODO: implement addAudioFrame()
 
-    {
-        std::lock_guard<std::mutex> lockGuard(encoder);
-        if (fmEncoder == nullptr) {
-            LOGE("音频null");
-            return;
-        }
-    }
     jsize len = env->GetArrayLength(data);
     jbyte *bytes = env->GetByteArrayElements(data, NULL);
-
-    fmEncoder->add_audio_frame(reinterpret_cast<char * >(bytes), len, seconds);
+    videoEncoderManager->addAudioFrame(reinterpret_cast<char * >(bytes), len, seconds);
     env->ReleaseByteArrayElements(data, bytes, JNI_ABORT);
 
 }
@@ -231,12 +207,5 @@ extern "C"
 JNIEXPORT void JNICALL
 Java_com_fm_fmplayer_encoder_FmEncoder_stopEncoder(JNIEnv *env, jclass thiz) {
     // TODO: implement endCoder()
-    std::lock_guard<std::mutex> lockGuard(encoder);
-    LOGE("结束");
-    if (fmEncoder != nullptr) {
-        fmEncoder->end();
-    } else {
-        LOGE("encoder 为 null");
-    }
-    fmEncoder = nullptr;
+   videoEncoderManager->stop();
 }

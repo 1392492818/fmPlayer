@@ -40,6 +40,8 @@ namespace fm {
         /* pts of the next frame that will be generated */
         int64_t next_pts;
         int64_t prev_pts;
+        int64_t prev_packet_pts = 0;
+
         int samples_count;
 
         AVFrame *frame;
@@ -102,6 +104,7 @@ namespace fm {
 
         std::mutex videoQueueMutex;
         std::mutex audioQueueMutex;
+        std::mutex writeFrameMutex;
         std::condition_variable videoQueueFull;   // 队列不满的条件变量
         std::condition_variable audioQueueFull;
         std::queue<FrameInfo> videoQueue;
@@ -135,7 +138,7 @@ namespace fm {
 
 
         int write_frame(AVFormatContext *fmt_ctx, AVCodecContext *c,
-                        AVStream *st, AVFrame *frame, AVPacket *pkt);
+                        AVStream *st, AVFrame *frame, AVPacket *pkt,int64_t *prev_packet_pts);
 
 
 

@@ -2,10 +2,11 @@ package com.fm.fmplayer.encoder;
 
 import android.graphics.SurfaceTexture;
 import android.media.Image;
+import android.nfc.Tag;
 import android.util.Log;
 
 public class FmEncoder {
-
+    private final static String TAG = FmEncoder.class.getSimpleName();
     static {
         System.loadLibrary("video");
     }
@@ -50,7 +51,6 @@ public class FmEncoder {
     }
 
     public void endCoder(){
-        Log.e("测试", "调用结束");
         this.stopEncoder();
     }
 

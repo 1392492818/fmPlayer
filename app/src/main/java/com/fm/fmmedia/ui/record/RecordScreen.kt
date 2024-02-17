@@ -6,6 +6,9 @@ import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.util.Log
+import android.view.WindowManager
+import androidx.activity.ComponentActivity
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -25,8 +28,10 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.app.ActivityCompat
+import com.fm.fmmedia.R
 import com.fm.fmmedia.compose.CameraScreen
 import com.fm.fmmedia.compose.PermissionRequestScreen
+import com.fm.fmmedia.compose.loading
 import com.fm.fmplayer.encoder.AACEncoder
 import com.fm.fmplayer.encoder.FmEncoder
 import com.fm.fmplayer.encoder.H264Encoder
@@ -109,6 +114,9 @@ fun CameraPermissionScreen(onVideoUpload: (path: String) -> Unit = {}) {
     var isRecord = remember {
         mutableStateOf(false)
     }
+    var isLoading by remember {
+        mutableStateOf(false)
+    }
     val h264Encoder: H264Encoder by remember {
         mutableStateOf(H264Encoder())
     }
@@ -135,6 +143,9 @@ fun CameraPermissionScreen(onVideoUpload: (path: String) -> Unit = {}) {
     val context = LocalContext.current
     var index = 0;
 
+    val window = (context as? ComponentActivity)?.window
+    window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
     // 请求权限
     LaunchedEffect(permissionState) {
         permissionState.launchMultiplePermissionRequest()
@@ -148,6 +159,7 @@ fun CameraPermissionScreen(onVideoUpload: (path: String) -> Unit = {}) {
                 .fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
+
             if (isPermissionGranted) {
                 // 权限已授予，显示摄像头 UI
                 CameraScreen(
@@ -159,6 +171,9 @@ fun CameraPermissionScreen(onVideoUpload: (path: String) -> Unit = {}) {
                         if (isRecord.value) {
                             millSeconds = System.currentTimeMillis()
                             startRecording(context, isRecord, {
+                                GlobalScope.launch {
+                                    isLoading = true
+                                }
                                 fmEncoder?.endCoder()
                                 fmEncoder = null
                                 GlobalScope.launch(Dispatchers.Main) {
@@ -181,6 +196,9 @@ fun CameraPermissionScreen(onVideoUpload: (path: String) -> Unit = {}) {
 
                     fmEncoder?.addVideo(image, System.currentTimeMillis() - millSeconds)
                     image.close()
+                }
+                if (isLoading) {
+                    loading(modifier = Modifier.fillMaxSize().clickable {  }, color = R.color.white)
                 }
             } else {
                 // 权限未授予，显示权限请求 UI

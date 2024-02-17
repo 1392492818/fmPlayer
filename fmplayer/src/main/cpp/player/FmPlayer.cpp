@@ -790,7 +790,10 @@ namespace fm {
         // qDebug() << speed;
         std::lock_guard<std::mutex> lock(speedAudioMutex);
         this->speedAudio = speed;
-        if (sink == nullptr && src == nullptr && audioCodecContext != nullptr) {
+        LOGE("1 %f", speed);
+
+        if (audioCodecContext != nullptr) {
+            LOGE("2 %f", speed);
             init_filter_graph();
         }
     }

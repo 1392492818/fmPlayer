@@ -189,7 +189,6 @@ fun fmNavHost(
                     navController.navigate(Screen.Video.createRoute(id))
                 }
             )
-            navController.navigate(Screen.VideoEdit.createRoute(URLEncoder.encode("/data/data/com.fm.fmmedia/files/test.mp4", "utf-8")))
 
 //            RecordScreen(onVideoUpload = {path->
 //                navController.navigate(Screen.VideoEdit.createRoute(URLEncoder.encode(path, "utf-8")))

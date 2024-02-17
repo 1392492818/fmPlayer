@@ -156,6 +156,7 @@ class FmGlView(
     }
 
     fun setSpeed(speed: Float) {
+        Log.e("测试", speed.toString())
         fmPlayer.setSpeed(speed)
     }
 
