@@ -55,6 +55,8 @@ namespace fm {
 
         void lock();
 
+        void resetPlayer(int64_t time = 0);
+
         void clearAllQueue();
 
         bool checkPlayer();
@@ -124,7 +126,9 @@ namespace fm {
         void asyncTime(std::chrono::time_point<std::chrono::system_clock> currentTime, int64_t,
                        MediaType);
 
-        void seek(int64_t time);
+        int seek(int64_t time);
+
+        void notifyFull();
 
         void start();
 

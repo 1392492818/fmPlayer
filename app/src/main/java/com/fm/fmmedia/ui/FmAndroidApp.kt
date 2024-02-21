@@ -19,6 +19,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.fm.fmmedia.repository.LoginRepository
 import com.fm.fmmedia.repository.MemberInfoRepository
+import com.fm.fmmedia.repository.ShortVideoRepository
 import com.fm.fmmedia.repository.VideoGroupRepository
 import com.fm.fmmedia.ui.login.forgetPassword
 import com.fm.fmmedia.ui.login.loginScreen
@@ -28,11 +29,13 @@ import com.fm.fmmedia.ui.live.liveScreen
 import com.fm.fmmedia.ui.profile.profileScreen
 import com.fm.fmmedia.ui.record.RecordScreen
 import com.fm.fmmedia.ui.record.VideoEditScreen
+import com.fm.fmmedia.ui.record.videoUploadScreen
 import com.fm.fmmedia.ui.theme.FmMediaTheme
 import com.fm.fmmedia.ui.video.videoScreen
 import com.fm.fmmedia.viewmodel.AccessTokenViewModel
 import com.fm.fmmedia.viewmodel.LoginViewModel
 import com.fm.fmmedia.viewmodel.MemberInfoViewModel
+import com.fm.fmmedia.viewmodel.ShortVideoViewModel
 import com.fm.fmmedia.viewmodel.VideoCategoryViewModel
 import com.fm.fmmedia.viewmodel.VideoGroupViewModel
 import java.net.URLEncoder
@@ -128,6 +131,7 @@ fun fmNavHost(
     )
     val loginViewModel: LoginViewModel = LoginViewModel(LoginRepository())
     val memberInfoViewModel = MemberInfoViewModel(MemberInfoRepository())
+    val shortVideoViewModel = ShortVideoViewModel(ShortVideoRepository())
 
     NavHost(
         navController = navController,
@@ -162,15 +166,58 @@ fun fmNavHost(
         ) {
             registerScreen()
         }
-        composable(route = Screen.ReCord.route){
-            RecordScreen(onVideoUpload = {path->
-                navController.navigate(Screen.VideoEdit.createRoute(URLEncoder.encode(path, "utf-8")))
+        composable(route = Screen.ReCord.route) {
+            RecordScreen(onVideoUpload = { path ->
+                navController.navigate(
+                    Screen.VideoEdit.createRoute(
+                        URLEncoder.encode(
+                            path,
+                            "utf-8"
+                        )
+                    )
+                )
             })
         }
-        composable(route = Screen.VideoEdit.route,  arguments = Screen.VideoEdit.navArguments) {
+        composable(route = Screen.VideoEdit.route, arguments = Screen.VideoEdit.navArguments) {
             val path: String? = it.arguments?.getString("path")
-            path?.let { it1 -> VideoEditScreen(it1) }
+            path?.let { it1 ->
+                VideoEditScreen(
+                    navController = navController,
+                    path = it1,
+                    next = { path ->
+                        navController.navigate(
+                            Screen.VideoUpload.createRoute(
+                                URLEncoder.encode(
+                                    path,
+                                    "utf-8"
+                                )
+                            )
+                        )
+                    }
+                )
+            }
         }
+
+        composable(route = Screen.VideoUpload.route, arguments = Screen.VideoUpload.navArguments) {
+            val path: String? = it.arguments?.getString("path")
+            path?.let {
+                videoUploadScreen(
+                    navController = navController,
+                    path = it,
+                    accessTokenViewModel = accessTokenViewModel,
+                    redirect = {
+                        navController.navigate(Screen.Profile.route) {
+                            launchSingleTop = true
+                            popUpTo(Screen.Home.route) {
+                                //inclusive = true
+                            }
+                        }
+
+                    }
+                )
+            }
+        }
+
         composable(
             route = Screen.ForgetPassword.route,
             arguments = Screen.ForgetPassword.navArguments,
@@ -194,6 +241,8 @@ fun fmNavHost(
 //                navController.navigate(Screen.VideoEdit.createRoute(URLEncoder.encode(path, "utf-8")))
 //            })
         }
+
+
         composable(route = Screen.Live.route) {
             liveScreen(navController = navController)
         }
@@ -221,8 +270,19 @@ fun fmNavHost(
                     navController = navController,
                     accessTokenViewModel = accessTokenViewModel,
                     memberInfoViewModel = memberInfoViewModel,
+                    shortVideoViewModel = shortVideoViewModel,
                     onRecord = {
                         navController.navigate(Screen.ReCord.route)
+                    },
+                    onVideoUpload = {path->
+                        navController.navigate(
+                            Screen.VideoEdit.createRoute(
+                                URLEncoder.encode(
+                                    path,
+                                    "utf-8"
+                                )
+                            )
+                        )
                     }
                 )
             }

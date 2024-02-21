@@ -187,7 +187,7 @@ Java_com_fm_fmplayer_encoder_FmEncoder_addVideoFrame(JNIEnv *env, jclass thiz, j
 
     jsize len = env->GetArrayLength(data);
     jbyte *bytes = env->GetByteArrayElements(data, NULL);
-    videoEncoderManager->addVideoFrame(reinterpret_cast<char *>(bytes), len, seconds);
+    videoEncoderManager->addVideoFrame(reinterpret_cast<unsigned char *>(bytes), len, seconds);
 
     env->ReleaseByteArrayElements(data, bytes, JNI_ABORT);
 }
@@ -199,7 +199,7 @@ Java_com_fm_fmplayer_encoder_FmEncoder_addAudioFrame(JNIEnv *env, jclass thiz, j
 
     jsize len = env->GetArrayLength(data);
     jbyte *bytes = env->GetByteArrayElements(data, NULL);
-    videoEncoderManager->addAudioFrame(reinterpret_cast<char * >(bytes), len, seconds);
+    videoEncoderManager->addAudioFrame(reinterpret_cast<unsigned char * >(bytes), len, seconds);
     env->ReleaseByteArrayElements(data, bytes, JNI_ABORT);
 
 }

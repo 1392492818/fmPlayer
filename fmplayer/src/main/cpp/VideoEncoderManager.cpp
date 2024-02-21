@@ -14,14 +14,14 @@ VideoEncoderManager::init(char *path, int width, int height, AVPixelFormat forma
     fmEncoder->init();
 }
 
-void VideoEncoderManager::addVideoFrame(char *data, int dataLength, int seconds) {
+void VideoEncoderManager::addVideoFrame(unsigned char *data, int dataLength, int seconds) {
     std::lock_guard lockGuard(encoder);
 
     if (fmEncoder != nullptr)
         fmEncoder->add_video_frame(data, dataLength, seconds);
 }
 
-void VideoEncoderManager::addAudioFrame(char *data, int dataLength, int seconds) {
+void VideoEncoderManager::addAudioFrame(unsigned char *data, int dataLength, int seconds) {
     std::lock_guard lockGuard(encoder);
 
     if (fmEncoder != nullptr)

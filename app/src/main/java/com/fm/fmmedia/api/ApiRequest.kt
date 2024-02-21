@@ -2,7 +2,9 @@ package com.fm.fmmedia.api
 
 import com.fm.fmmedia.BuildConfig
 import com.fm.fmmedia.api.request.Login
+import com.fm.fmmedia.api.request.ShortVideo
 import com.fm.fmmedia.api.response.Result
+import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -11,7 +13,9 @@ import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.Headers
+import retrofit2.http.Multipart
 import retrofit2.http.POST
+import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -46,10 +50,37 @@ interface ApiRequest {
     @GET("member/info")
     suspend fun memberInfo(@Header("Authorization") accessToken:String): Result;
 
+    @Multipart
+    @POST("video-file/video")
+    suspend fun uploadVideoFile(
+        @Header("Authorization") accessToken:String,
+        @Part video: MultipartBody.Part
+    ): Result;
+
+    @Multipart
+    @POST("file/image")
+    suspend fun uploadImageFile(
+        @Header("Authorization") accessToken:String,
+        @Part image: MultipartBody.Part
+    ): Result;
+
+    @POST("shortVideo")
+    suspend fun addShortVideo(
+        @Header("Authorization") accessToken:String,
+        @Body shortVideo: ShortVideo
+    ): Result
+
+    @GET("shortVideo")
+    suspend fun getShortVideo(
+        @Header("Authorization") accessToken:String,
+        @Query("pageNum") pageNum: Int,
+        @Query("pageSize") pageSize: Int,
+        @Query("search") search: String,
+        @Query("sort") sort: String
+    ): Result
 
     companion object {
         private const val BASE_URL = BuildConfig.API_BASE_URL
-
         fun create(): ApiRequest {
             val logger = HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BASIC }
 

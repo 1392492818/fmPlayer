@@ -15,8 +15,8 @@ private:
 public:
     void init(char* path, int width, int height, AVPixelFormat format,int rotate,int  sample_rate,
              int channel);
-    void addVideoFrame(char* data, int dataLength,int seconds);
-    void addAudioFrame(char* data, int dataLength, int seconds);
+    void addVideoFrame(unsigned char* data, int dataLength,int seconds);
+    void addAudioFrame(unsigned char* data, int dataLength, int seconds);
     void stop();
 };
 

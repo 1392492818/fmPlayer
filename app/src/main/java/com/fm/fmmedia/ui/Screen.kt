@@ -38,6 +38,13 @@ sealed class Screen(
         fun createRoute(path: String) = "VideoEdit/${path}"
     }
 
+    object VideoUpload: Screen(route = "VideoUpload/{path}",   navArguments = listOf(navArgument("path") {
+        type = NavType.StringType
+    })
+    ) {
+        fun createRoute(path: String) = "VideoUpload/${path}"
+    }
+
     object Live : Screen("Live")
 
     object Profile : Screen("Profile")

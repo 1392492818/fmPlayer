@@ -16,6 +16,8 @@ typedef struct {
 class VideoPlayerManager {
 private:
     std::unordered_map<std::string, FmPlayerStruct> playerHashMap;
+    std::unordered_map<std::string, long> seekTimeMap;
+    std::unordered_map<std::string, float> setSpeedMap;
     std::mutex player; // 保证队列进出不影响
 public:
     void startPlayer(JavaVM *g_VM, JNIEnv *env, jobject globalRef, string id,  string path, long time, string cachePath);
@@ -26,6 +28,7 @@ public:
     void speed(string id, float speed);
 private:
     FmPlayerStruct* getFmPlayerStruct(string id);
+
 };
 
 

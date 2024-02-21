@@ -71,7 +71,6 @@ private fun startRecording(
         audioRecord =
             AudioRecord(audioSource, sampleRateInHz, channelConfig, audioFormat, bufferSize)
         var audioData = ByteArray(frameSize)
-
         audioRecord?.startRecording()
         val aacEncoder = AACEncoder(sampleRateInHz, channelCount);
         // 启动处理音频数据的协程
@@ -114,6 +113,7 @@ fun CameraPermissionScreen(onVideoUpload: (path: String) -> Unit = {}) {
     var isRecord = remember {
         mutableStateOf(false)
     }
+    val path = "${LocalContext.current.filesDir.absolutePath}/encoder.mp4"
     var isLoading by remember {
         mutableStateOf(false)
     }
@@ -169,7 +169,6 @@ fun CameraPermissionScreen(onVideoUpload: (path: String) -> Unit = {}) {
                     onClick = {
                         isRecord.value = !isRecord.value
                         if (isRecord.value) {
-                            millSeconds = System.currentTimeMillis()
                             startRecording(context, isRecord, {
                                 GlobalScope.launch {
                                     isLoading = true
@@ -177,15 +176,17 @@ fun CameraPermissionScreen(onVideoUpload: (path: String) -> Unit = {}) {
                                 fmEncoder?.endCoder()
                                 fmEncoder = null
                                 GlobalScope.launch(Dispatchers.Main) {
-                                    onVideoUpload("/data/data/com.fm.fmmedia/files/test.mp4")
+                                    onVideoUpload(path)
                                 }
                             }) {
                                 fmEncoder?.addAudio(it, System.currentTimeMillis() - millSeconds)
                             }
                         }
                     }) { image, rotate ->
-                    if (fmEncoder == null)
+                    if (fmEncoder == null) {
+                        millSeconds = System.currentTimeMillis()
                         fmEncoder = FmEncoder(
+                            path,
                             image.width,
                             image.height,
                             0,
@@ -193,7 +194,8 @@ fun CameraPermissionScreen(onVideoUpload: (path: String) -> Unit = {}) {
                             sampleRateInHz,
                             channelCount
                         )
-
+                        millSeconds
+                    }
                     fmEncoder?.addVideo(image, System.currentTimeMillis() - millSeconds)
                     image.close()
                 }

@@ -5,12 +5,17 @@ import android.media.Image;
 import android.nfc.Tag;
 import android.util.Log;
 
+import java.util.LinkedList;
+import java.util.concurrent.ConcurrentLinkedQueue;
+
 public class FmEncoder {
     private final static String TAG = FmEncoder.class.getSimpleName();
+
     static {
         System.loadLibrary("video");
     }
-    private static native void encoder(String path, int width, int height,int format,int rotate, int sampleRate, int channel);
+
+    private static native void encoder(String path, int width, int height, int format, int rotate, int sampleRate, int channel);
 
     private static native void addVideoFrame(byte[] data, long pts);
 
@@ -26,31 +31,73 @@ public class FmEncoder {
 
     private int rotate = 0;
 
+    private boolean isEnd = false;
+    private ConcurrentLinkedQueue<ImageData> imageDataConcurrentLinkedQueue = new ConcurrentLinkedQueue<>();
 
-    public FmEncoder(int width, int height, int format, int rotate, int sampleRate,int channel) {
+    private Thread videoEncoderThread;
+
+    public FmEncoder(String path, int width, int height, int format, int rotate, int sampleRate, int channel) {
         this.width = width;
         this.height = height;
         this.format = format;
         this.sampleRate = sampleRate;
         this.channel = channel;
         this.rotate = rotate;
-        this.encoder("/data/data/com.fm.fmmedia/files/test.mp4", this.width, this.height, this.format, this.rotate, this.sampleRate, this.channel);
+
+        this.encoder(path, this.width, this.height, this.format, this.rotate, this.sampleRate, this.channel);
+        startVideoEncoderThread();
     }
 
-    public void addVideo(byte[] data, long milliSeconds){
+    private void startVideoEncoderThread() {
+        videoEncoderThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                while (true) {
+                    if (isEnd && imageDataConcurrentLinkedQueue.isEmpty()) {
+                        break;
+                    }
+                    ImageData imageData = imageDataConcurrentLinkedQueue.poll();
+                    if (imageData != null) {
+                        addVideo(imageData.getData(), imageData.getPts());
+                    }
+                    try {
+                        Thread.sleep(1);
+                    } catch (InterruptedException e) {
+                        Log.e(TAG, e.getMessage());
+                    }
+                }
+            }
+        });
+        videoEncoderThread.start();
+    }
+
+    public void addVideo(byte[] data, long milliSeconds) {
         this.addVideoFrame(data, milliSeconds);
     }
 
     public void addVideo(Image image, long pts) {
-        byte[] data = ImageFormatUtil.getYuv420p(image);
-        this.addVideo(data, pts);
+        long start = System.currentTimeMillis();
+        imageDataConcurrentLinkedQueue.add(ImageFormatUtil.getYuv420pImageData(image, pts));
+//        Log.e("测试", String.valueOf(System.currentTimeMillis() - start));
+
+//        byte[] data = ImageFormatUtil.getYuv420p(image);
+//        this.addVideo(data, pts);
     }
 
-    public void addAudio(byte[] data, long milliSeconds){
+    public void addAudio(byte[] data, long milliSeconds) {
         this.addAudioFrame(data, milliSeconds);
     }
 
-    public void endCoder(){
+    public void endCoder() {
+        isEnd = true;
+        while (!imageDataConcurrentLinkedQueue.isEmpty()) {
+            Log.e(TAG, String.valueOf(imageDataConcurrentLinkedQueue.size()));
+            try {
+                Thread.sleep(1);
+            } catch (InterruptedException e) {
+                Log.e(TAG, e.getMessage());
+            }
+        }
         this.stopEncoder();
     }
 

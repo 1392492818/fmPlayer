@@ -7,7 +7,7 @@ import com.google.gson.JsonParser
 import com.google.gson.JsonParser.parseString
 
 
-data class Result(val code: Int, val msg:String,  val data: Any){
+data class Result(var code: Int, val msg:String, val data: Any){
     inline fun <reified T> parseData(): T? {
         if (code == 0) {
             try {

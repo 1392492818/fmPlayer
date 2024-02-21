@@ -11,9 +11,9 @@ import androidx.compose.ui.res.colorResource
 import com.fm.fmmedia.R
 
 @Composable
-fun loading(modifier: Modifier = Modifier, @ColorRes color: Int = R.color.black){
+fun loading(modifier: Modifier = Modifier.fillMaxSize(), @ColorRes color: Int = R.color.black){
     Box(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier,
         contentAlignment = Alignment.Center
     ) {
         CircularProgressIndicator(

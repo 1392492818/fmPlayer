@@ -83,7 +83,9 @@ class FmGlView(
     cachePath: String,
     progress: (currentPosition: Long, duration: Long, cache: Long, isSeek: Boolean) -> Unit,
     isLoop: Boolean = false,
+    isFullWidth: Boolean = false,
     isLocalFile: Boolean = false,
+    width: Int = 0,
     endCallback: (isError: Boolean) -> Unit = {},
     onLoading: () -> Unit = {}
 ) : GLSurfaceView(context), PlayerCallback {
@@ -91,7 +93,6 @@ class FmGlView(
     private lateinit var surface: Surface;
     private val TAG: String = FmGlView::class.simpleName.toString();
     private var fmPlayer: FmPlayer = FmPlayer();
-    private val baseUrl = BuildConfig.VIDEO_URL;
     var callback: (currentPosition: Long, duration: Long, cache: Long, isSeek: Boolean) -> Unit;
     var endCallback: (isError: Boolean) -> Unit;
     var onLoading: () -> Unit;
@@ -107,16 +108,14 @@ class FmGlView(
         this.endCallback = endCallback
         this.isLoop = isLoop
         this.onLoading = onLoading
-        var sourceUrl =  baseUrl + url
-        if (isLocalFile){
-            sourceUrl = url
-        }
+        var sourceUrl = url
 
-        videoRenderOES = VideoRenderOES(context, this.width, this.height) { videoTexture ->
+        videoRenderOES = VideoRenderOES(context, width, this.height) { videoTexture ->
             this.surface = Surface(videoTexture)
             Log.e(TAG, "开始播放")
             startPlayer(sourceUrl)
         }
+        videoRenderOES.setFullWidth(isFullWidth)
         this.setRenderer(videoRenderOES)
     }
 
@@ -132,7 +131,7 @@ class FmGlView(
             this.seekTime = seekTime
             fmPlayer.release()
             fmPlayer = FmPlayer()
-            startPlayer(baseUrl + source)
+            startPlayer(source)
         } catch (e: Exception) {
 
         }
@@ -144,10 +143,13 @@ class FmGlView(
     }
 
     fun pause() {
+        Log.e("pause", "pause")
+
         fmPlayer.pause()
     }
 
     fun play() {
+        Log.e("play", "play")
         fmPlayer.play()
     }
 

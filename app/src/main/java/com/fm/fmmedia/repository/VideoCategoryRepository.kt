@@ -34,11 +34,9 @@ class VideoCategoryRepository :BaseRepository() {
                     videoCategoryPage?.list = oldList.plus(nextList)
                     page.value = videoCategoryPage
                 }
-
             } else {
                 page.value = videoCategoryPage
             }
-
         } catch (e: Exception) {
             page.value = null
             isRequestError.value = true

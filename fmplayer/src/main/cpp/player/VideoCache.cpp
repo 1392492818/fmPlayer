@@ -85,7 +85,9 @@ AVPacket *fm::VideoCache::readPacket() {
         std::unique_lock<std::mutex> emptyLock(cacheEmptyMutex); //数据为空就先不处理
         packetQueueEmptyCondition.wait(emptyLock,
                                        [&] {
-                                           return !packetQueue.empty();
+                                           return !packetQueue.empty() || this->isEnd;
+//                                           return !packetQueue.empty();
+
                                        });
     }
     lock_guard lock(cacheMutex);
@@ -178,8 +180,13 @@ int64_t fm::VideoCache::getEndTimeBase() const {
 }
 
 void fm::VideoCache::setIsEnd(bool isEnd) {
-    packetQueueEmptyCondition.notify_one();
+    LOGE("设置 end");
     this->isEnd = isEnd;
+    packetQueueEmptyCondition.notify_one();
+}
+
+void fm::VideoCache::setEndTimeBase(int64_t endTimeBase) {
+    VideoCache::endTimeBase = endTimeBase;
 }
 
 

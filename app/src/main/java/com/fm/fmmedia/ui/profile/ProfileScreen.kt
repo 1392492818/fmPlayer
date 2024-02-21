@@ -2,7 +2,10 @@ package com.fm.fmmedia.ui.profile
 
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.net.Uri
 import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.animateIntOffsetAsState
@@ -28,6 +31,10 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridState
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -80,11 +87,14 @@ import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.core.content.ContextCompat.startActivity
+import com.fm.fmmedia.BuildConfig
 import com.fm.fmmedia.MainActivity
 import com.fm.fmmedia.api.response.MemberInfoResponse
 import com.fm.fmmedia.data.AccessToken
@@ -96,6 +106,18 @@ import com.fm.fmmedia.viewmodel.MemberInfoViewModel
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import com.fm.fmmedia.api.Error
+import com.fm.fmmedia.api.response.ShortVideoResponse
+import com.fm.fmmedia.api.response.VideoGroupResponse
+import com.fm.fmmedia.compose.SwipeRefresh
+import com.fm.fmmedia.compose.videoItem
+import com.fm.fmmedia.repository.ShortVideoRepository
+import com.fm.fmmedia.util.FileHelper
+import com.fm.fmmedia.viewmodel.ShortVideoViewModel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import java.net.URLEncoder
+import kotlin.math.ceil
+
 val maxHeader = 200.dp
 val minHeader = 68.dp
 val paddingHeader = 20.dp // 为了滑动时候不显示底部
@@ -111,7 +133,9 @@ fun profileScreen(
     navController: NavHostController,
     accessTokenViewModel: AccessTokenViewModel,
     memberInfoViewModel: MemberInfoViewModel,
-    onRecord: ()->Unit
+    shortVideoViewModel: ShortVideoViewModel,
+    onRecord: () -> Unit,
+    onVideoUpload: (path: String) -> Unit
 ) {
     val systemUiController: SystemUiController = rememberSystemUiController()
     val accessTokenList by accessTokenViewModel.accessTokenList.observeAsState()
@@ -132,7 +156,9 @@ fun profileScreen(
             innerPadding = innerPadding,
             accessTokenViewModel = accessTokenViewModel,
             memberInfoViewModel = memberInfoViewModel,
-            onRecord = onRecord
+            shortVideoViewModel = shortVideoViewModel,
+            onRecord = onRecord,
+            onVideoUpload = onVideoUpload
         )
 
 
@@ -144,7 +170,9 @@ private fun profile(
     innerPadding: PaddingValues,
     accessTokenViewModel: AccessTokenViewModel,
     memberInfoViewModel: MemberInfoViewModel,
-    onRecord: ()->Unit
+    shortVideoViewModel: ShortVideoViewModel,
+    onRecord: () -> Unit,
+    onVideoUpload: (path: String) -> Unit
 ) {
     var offsetX by remember { mutableStateOf(0f) }
     var moved by remember { mutableStateOf(false) }
@@ -157,17 +185,21 @@ private fun profile(
     val memberInfo by memberInfoViewModel.memberInfo.observeAsState()
     val accessTokenList by accessTokenViewModel.accessTokenList.observeAsState()
     val errorCode by memberInfoViewModel.errorCode.observeAsState()
+    var accessToken: AccessToken? by remember {
+        mutableStateOf(null)
+    }
 
-    LaunchedEffect(accessTokenList){
+    LaunchedEffect(accessTokenList) {
         accessTokenList?.let {
-            for (accessToken in it) {
-                memberInfoViewModel.memberInfo(accessToken.accessToken)
+            for (token in it) {
+                memberInfoViewModel.memberInfo(token.accessToken)
+                accessToken = token
             }
         }
     }
 
     LaunchedEffect(errorCode) {
-        if(errorCode == Error.tokenOutTimeLimit){
+        if (errorCode == Error.tokenOutTimeLimit) {
             accessTokenList?.let {
                 for (accessToken in it) {
                     accessTokenViewModel.delete(accessToken.id)
@@ -175,7 +207,6 @@ private fun profile(
             }
         }
     }
-
 
 
     val rightOffset by animateIntOffsetAsState(
@@ -227,7 +258,6 @@ private fun profile(
         ) {
 
             val scroll = rememberScrollState(0)
-
             header(innerPadding)
             IconButton(
                 modifier = Modifier
@@ -253,8 +283,16 @@ private fun profile(
                     contentDescription = "Menu",
                 )
             }
-            body(scroll)
-            memberInfo?.let { title(memberInfo = it, scrollProvider = { scroll.value }, onRecord = onRecord) }
+            accessToken?.let { body(scroll, shortVideoViewModel, it, innerPadding = innerPadding) }
+            memberInfo?.let {
+                title(
+                    memberInfo = it,
+                    scrollProvider = { scroll.value },
+                    onRecord = onRecord,
+                    onVideoUpload = onVideoUpload,
+                    shortVideoViewModel = shortVideoViewModel
+                )
+            }
             image {
                 scroll.value
             }
@@ -290,7 +328,7 @@ private fun profile(
                                 contentDescription = "exit"
                             )
                             Text(
-                                text = "退出登录",
+                                text = stringResource(id = R.string.profile_logout),
                                 modifier = Modifier
                                     .padding(5.dp)
                                     .clickable {
@@ -323,7 +361,7 @@ private fun header(innerPadding: PaddingValues) {
     )
 
     Text(
-        text = "个人设置",
+        text = stringResource(id = R.string.profile_member_setting),
         style = androidx.compose.material.MaterialTheme.typography.h6,
         modifier = Modifier.padding(5.dp, innerPadding.calculateTopPadding(), 0.dp, 0.dp),
         color = Color.White
@@ -333,7 +371,55 @@ private fun header(innerPadding: PaddingValues) {
 }
 
 @Composable
-private fun body(scroll: ScrollState) {
+private fun body(
+    scroll: ScrollState,
+    shortVideoModel: ShortVideoViewModel,
+    accessToken: AccessToken,
+    innerPadding: PaddingValues
+) {
+    val page by shortVideoModel.page.observeAsState()
+    var isRefreshing by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
+    var isFinishing by remember {
+        mutableStateOf(false)
+    }
+    val sort = "createTime=ASC"
+    LaunchedEffect(Unit) {
+        shortVideoModel.getShortVideoData(accessToken = accessToken.accessToken, sort = sort)
+    }
+
+    LaunchedEffect(page?.list) {
+        isLoading = false
+    }
+
+    val configuration = LocalConfiguration.current
+    val screenWidth = configuration.screenWidthDp.dp
+    val columnNum = 3
+    val columnItemHeight = 180.dp
+    val density = LocalDensity.current
+    val scope = rememberCoroutineScope()
+    LaunchedEffect(scroll.value) {
+
+        if (scroll.value == scroll.maxValue) {
+            if (page?.hasNextPage == false) {
+                isFinishing = true
+            } else {
+                isLoading = true
+                val pageNum = page?.nextPage
+                val pageSize = page?.pageSize
+                if (pageNum != null && pageSize != null) {
+                    shortVideoModel.getShortVideoData(
+                        pageNum = pageNum,
+                        pageSize = pageSize,
+                        isNext = true,
+                        accessToken = accessToken.accessToken,
+                        sort = sort
+                    )
+                }
+            }
+        }
+    }
+
 
     Column {
         Spacer(
@@ -342,12 +428,11 @@ private fun body(scroll: ScrollState) {
                 .height(minHeader)
         )
 
-
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(scroll)
+                .padding(5.dp, 5.dp, 5.dp, innerPadding.calculateBottomPadding())
         )
         {
             Spacer(
@@ -355,14 +440,29 @@ private fun body(scroll: ScrollState) {
                     .fillMaxWidth()
                     .height(offsetTopHeader + titleMinHeader - paddingHeader)
             )
-            var i = 100;
-            while (i-- > 0)
-                Text(
-                    text = i.toString(),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color.White)
-                )
+            val shortVideoList = page?.getData<List<ShortVideoResponse>>()
+            shortVideoList?.let { shortVideoList ->
+                shortVideoList.chunked(columnNum).forEachIndexed { index, chunk ->
+                    Row(modifier = Modifier.height(columnItemHeight)) {
+                        chunk.forEach { shortVideo ->
+                            videoItem(
+                                modifier = Modifier
+                                    .height(columnItemHeight)
+                                    .width(screenWidth / columnNum)
+                                    .padding(2.dp)
+                                    .clickable {
+                                    },
+                                name = shortVideo.title,
+                                imageUrl = BuildConfig.API_BASE_URL + "image/" + shortVideo.cover,
+                                contentScale = ContentScale.Crop
+                            )
+                        }
+                    }
+                }
+
+            }
+
+
         }
 
 
@@ -370,10 +470,31 @@ private fun body(scroll: ScrollState) {
 }
 
 @Composable
-private fun title(scrollProvider: () -> Int, memberInfo: MemberInfoResponse, onRecord: () -> Unit) {
+private fun title(
+    scrollProvider: () -> Int,
+    memberInfo: MemberInfoResponse,
+    shortVideoViewModel: ShortVideoViewModel,
+    onRecord: () -> Unit,
+    onVideoUpload: (path: String) -> Unit
+) {
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
+    val context = LocalContext.current
     val screenWidth = configuration.screenWidthDp.dp
+    val page by shortVideoViewModel.page.observeAsState()
+    val chooseFileLauncher =
+        rememberLauncherForActivityResult(contract = ActivityResultContracts.GetContent()) { uri: Uri? ->
+            uri?.let {
+
+                val path = FileHelper.getFileAbsolutePath(context, uri)
+                if (path != null) {
+                    Log.e("测hi是", path)
+                    onVideoUpload(path)
+                }
+
+
+            }
+        }
     Column(modifier = Modifier
         .fillMaxWidth()
         .height(titleMinHeader)
@@ -426,16 +547,16 @@ private fun title(scrollProvider: () -> Int, memberInfo: MemberInfoResponse, onR
                             .fillMaxWidth()
                     ) {
                         Text(
-                            text = "0 视频数",
-                            modifier = Modifier.weight(1f)
+                            text = "${page?.total} 视频数",
+                            modifier = Modifier.weight(2f)
                         )
                         Text(
                             text = "0 朋友",
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(2f)
                         )
                         Text(
                             text = "0 喜欢",
-                            modifier = Modifier.weight(3f)
+                            modifier = Modifier.weight(2f)
                         )
                     }
                 }
@@ -472,7 +593,7 @@ private fun title(scrollProvider: () -> Int, memberInfo: MemberInfoResponse, onR
                         modifier = Modifier
                             .wrapContentSize()
                             .clickable {
-                                Log.e("测试", "视频录制")
+                                chooseFileLauncher.launch("video/*")
                             }
                             .padding(10.dp, 0.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -490,7 +611,8 @@ private fun title(scrollProvider: () -> Int, memberInfo: MemberInfoResponse, onR
                         )
                         Text(
                             text = stringResource(id = R.string.profile_file_upload),
-                            modifier = Modifier.padding(5.dp, 3.dp),
+                            modifier = Modifier
+                                .padding(5.dp, 3.dp),
                             fontSize = 10.sp
                         )
                     }
@@ -498,7 +620,11 @@ private fun title(scrollProvider: () -> Int, memberInfo: MemberInfoResponse, onR
                 }
 
                 var state by remember { mutableStateOf(0) }
-                val titles = listOf("Tab 1", "Tab 2", "Tab 3")
+                val titles = listOf(
+                    stringResource(id = R.string.profile_tab_my_video),
+                    stringResource(id = R.string.profile_tab_my_like_video),
+                    stringResource(id = R.string.profile_tab_my_friend)
+                )
                 TabRow(
                     selectedTabIndex = state,
                     indicator = { tabPositions ->

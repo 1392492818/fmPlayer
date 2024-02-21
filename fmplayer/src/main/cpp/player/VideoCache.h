@@ -63,6 +63,10 @@ namespace fm {
         std::condition_variable packetQueueEmptyCondition;
         std::queue<AVPacket*> packetQueue;
         int64_t endTimeBase = 0;
+    public:
+        void setEndTimeBase(int64_t endTimeBase);
+
+    private:
         bool isEnd = false;
 
 

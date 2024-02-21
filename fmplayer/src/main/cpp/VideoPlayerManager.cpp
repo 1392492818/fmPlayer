@@ -22,6 +22,14 @@ void VideoPlayerManager::startPlayer(JavaVM *g_VM, JNIEnv *env, jobject globalRe
     fmPlayer->setCallAvFrame(videoPlayer);
     fmPlayer->startPlayer(path.data(), time, cachePath);
     fmPlayer->start();
+    if(seekTimeMap.find(id) != seekTimeMap.end()) {
+        fmPlayer->seek(seekTimeMap[id]);
+        seekTimeMap.erase(id);
+    }
+    if(setSpeedMap.find(id) != setSpeedMap.end()){
+        fmPlayer->updateSpeedAudio(setSpeedMap[id]);
+        setSpeedMap.erase(id);
+    }
 }
 
 void VideoPlayerManager::stop(string id) {
@@ -43,13 +51,17 @@ FmPlayerStruct *VideoPlayerManager::getFmPlayerStruct(string id) {
 }
 
 void VideoPlayerManager::play(string id) {
+//    std::lock_guard<std::mutex> lockGuard(player);
     FmPlayerStruct *fmPlayerStruct = getFmPlayerStruct(id);
+    LOGE("play1");
     if (fmPlayerStruct != nullptr) {
+        LOGE("play2");
         fmPlayerStruct->fmPlayer->play();
     }
 }
 
 void VideoPlayerManager::pause(string id) {
+//    std::lock_guard<std::mutex> lockGuard(player);
     FmPlayerStruct *fmPlayerStruct = getFmPlayerStruct(id);
     if (fmPlayerStruct != nullptr) {
         fmPlayerStruct->fmPlayer->pause();
@@ -57,15 +69,22 @@ void VideoPlayerManager::pause(string id) {
 }
 
 void VideoPlayerManager::seek(string id, long time) {
+//    std::lock_guard<std::mutex> lockGuard(player);
     FmPlayerStruct *fmPlayerStruct = getFmPlayerStruct(id);
     if (fmPlayerStruct != nullptr) {
         fmPlayerStruct->fmPlayer->seek(time);
+    }  else {
+        seekTimeMap[id] = time;
     }
 }
 
 void VideoPlayerManager::speed(string id, float speed) {
+//    std::lock_guard<std::mutex> lockGuard(player);
     FmPlayerStruct *fmPlayerStruct = getFmPlayerStruct(id);
     if (fmPlayerStruct != nullptr) {
         fmPlayerStruct->fmPlayer->updateSpeedAudio(speed);
+    } else {
+        setSpeedMap[id] = speed;
     }
 }
+

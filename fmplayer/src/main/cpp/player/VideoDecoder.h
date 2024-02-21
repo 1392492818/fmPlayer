@@ -124,8 +124,10 @@ namespace fm {
         bool isRelease = false;
         bool isEnd = false;
         bool isExit = false;
+        string cache;
         VideoCache *videoCache;
         mutex cacheMutex;
+        mutex seekMutex;
         mutex cacheEmptyMutex;
         std::condition_variable packetQueueEmptyCondition;
         std::thread cacheThread;
@@ -163,9 +165,11 @@ namespace fm {
 
         void openDecoder();
 
-        void seek(int64_t);
+        int seek(int64_t);
 
         AvFrameInfo readFrame();
+
+        void setCacheVideoThread();
 
         AVFrame *readVideoFrame(int64_t &duration, int width = 100, int height = 60);
 

@@ -147,78 +147,80 @@ namespace fm {
         }
     }
 
-//    AVPacketData VideoDecoder::readPacket() {
-//        AVPacketData avPacketData;
-//        std::queue<AVPacket *> avPacketQueue;
-//
-//        // 分配 AVPacket
-//        AVPacket *packet = av_packet_alloc();
-//        if (!packet) {
-//            return avPacketData;
-//        }
-//        int ret = 0;
-//        // 读取帧并解码
-//        if ((ret = av_read_frame(formatContext, packet)) >= 0) {
-//            avPacketData.setIsEnd(false);
-////            videoCache->readPacket(0);
-//            videoCache->cachePacket(packet);
-//            for (StreamInfo *streamInfo: streamInfos) {
-//
-//                if (streamInfo->getStreamIndex() == packet->stream_index) {
-//                    avPacketData.setMediaType(streamInfo->getMediaType());
-////                    AVCodecParameters *codecpar = streamInfo->getAvStream()->codecpar;
-////                    avPacketData.setAvCodecParameters(*codecpar);
-//                    avPacketData.setAvCodecContext(streamInfo->getCodecContext());
-//                    avPacketData.setAvStream(streamInfo->getAvStream());
-////                    avPacketData.setAvCodecId(streamInfo->getAvStream()->codecpar->codec_id);
-//                    avPacketQueue.push(packet);
-//                }
-//            }
-//        }
-//        if(ret < 0 && ret != AVERROR_EOF){
-//            avPacketData.setIsError(true);
-//        }
-//        avPacketData.setAvPacketQueue(avPacketQueue);
-//        return avPacketData;
-//    }
     AVPacketData VideoDecoder::readPacket() {
         AVPacketData avPacketData;
         std::queue<AVPacket *> avPacketQueue;
 
-        if (this->videoCache->getPacketQueue().size() == 0 && isError) {
-            LOGE("出错了");
-            avPacketData.setIsEnd(true);
-            avPacketData.setIsError(isError);
+        // 分配 AVPacket
+        AVPacket *packet = av_packet_alloc();
+        if (!packet) {
             return avPacketData;
         }
-        AVPacket *packet = videoCache->readPacket();
-        if (packet != nullptr) {
-            if (this->videoCache->getPacketQueue().size() == 0 && this->isEnd) {
-                avPacketData.setIsEnd(this->isEnd);
-            } else {
-                avPacketData.setIsEnd(false);
-            }
-        } else {
-            this->isEnd = true;
-            avPacketData.setIsEnd(this->isEnd);
-        }
-        if (packet != nullptr) {
+        int ret = 0;
+        // 读取帧并解码
+        if ((ret = av_read_frame(formatContext, packet)) >= 0) {
+            avPacketData.setIsEnd(false);
+//            videoCache->readPacket(0);
+//            videoCache->cachePacket(packet);
             for (StreamInfo *streamInfo: streamInfos) {
+
                 if (streamInfo->getStreamIndex() == packet->stream_index) {
                     avPacketData.setMediaType(streamInfo->getMediaType());
+//                    AVCodecParameters *codecpar = streamInfo->getAvStream()->codecpar;
+//                    avPacketData.setAvCodecParameters(*codecpar);
                     avPacketData.setAvCodecContext(streamInfo->getCodecContext());
                     avPacketData.setAvStream(streamInfo->getAvStream());
+//                    avPacketData.setAvCodecId(streamInfo->getAvStream()->codecpar->codec_id);
                     avPacketQueue.push(packet);
                 }
             }
-        } else {
-            isError = true;
-            isRelease = true;
         }
-
+        if(ret < 0 && ret != AVERROR_EOF){
+            avPacketData.setIsError(true);
+        }
         avPacketData.setAvPacketQueue(avPacketQueue);
         return avPacketData;
     }
+//    AVPacketData VideoDecoder::readPacket() {
+//        std::lock_guard lockGuard(seekMutex);
+//        AVPacketData avPacketData;
+//        std::queue<AVPacket *> avPacketQueue;
+//        if (this->videoCache->getPacketQueue().size() == 0 && isError) {
+//            LOGE("出错了");
+//            avPacketData.setIsEnd(true);
+//            avPacketData.setIsError(isError);
+//            return avPacketData;
+//        }
+//        AVPacket *packet = videoCache->readPacket();
+//        if (packet != nullptr) {
+//            if (this->videoCache->getPacketQueue().size() == 0 && this->isEnd) {
+//                LOGE("readPacket end");
+//                avPacketData.setIsEnd(this->isEnd);
+//            } else {
+//                avPacketData.setIsEnd(false);
+//            }
+//        } else {
+//            LOGE("readPacket end");
+//            this->isEnd = true;
+//            avPacketData.setIsEnd(this->isEnd);
+//        }
+//        if (packet != nullptr) {
+//            for (StreamInfo *streamInfo: streamInfos) {
+//                if (streamInfo->getStreamIndex() == packet->stream_index) {
+//                    avPacketData.setMediaType(streamInfo->getMediaType());
+//                    avPacketData.setAvCodecContext(streamInfo->getCodecContext());
+//                    avPacketData.setAvStream(streamInfo->getAvStream());
+//                    avPacketQueue.push(packet);
+//                }
+//            }
+//        } else {
+//            isError = true;
+//            isRelease = true;
+//        }
+//
+//        avPacketData.setAvPacketQueue(avPacketQueue);
+//        return avPacketData;
+//    }
 
     AvFrameInfo VideoDecoder::readFrame() {
 
@@ -265,9 +267,12 @@ namespace fm {
     }
 
     bool VideoDecoder::init(long time, string cache) {
+        formatContext = avformat_alloc_context();
+        this->isEnd = false;
         AVDictionary *opts = NULL;
+        this->cache = cache;
         std::cout << input << std::endl;
-        this->videoCache = new VideoCache(cache, input);
+        this->videoCache = new VideoCache(this->cache, input);
         av_dict_set(&opts, "rw_timeout", "5000000", 0);//设置超时3秒
         if (avformat_open_input(&formatContext, input, nullptr, &opts) != 0) {
             fprintf(stderr, "Error opening input file\n");
@@ -290,15 +295,21 @@ namespace fm {
 //        av_opt_set(formatContext, "progress_callback",
 //                   reinterpret_cast<const char *>(progress_callback), 0);
         //启动视频缓存
+//        setCacheVideoThread();
+        return true;
+    }
+
+    void VideoDecoder::setCacheVideoThread() {
+        this->isEnd = false;
+        this->isExit = false;
+        this->videoCache->setIsEnd(false);
         auto cacheVideo = std::bind(&VideoDecoder::cacheVideo, this);
         // 创建线程，并调用绑定的成员函数
         this->cacheThread = std::thread(cacheVideo);
         this->cacheThread.detach();
-        return true;
     }
 
     VideoDecoder::VideoDecoder(const char *input, bool isHardware) {
-        formatContext = avformat_alloc_context();
         this->input = input;
         this->isHardware = isHardware;
     }
@@ -321,23 +332,37 @@ namespace fm {
         }
     }
 
-    void VideoDecoder::seek(int64_t time) {
-        LOGE("VideoDecoder::seek %lld isEnd %d", time / AV_TIME_BASE, this->isEnd);
-        if (this->formatContext != nullptr && !isEnd) {
-            if (!videoCache->seekVideoCache(
-                    time /
-                    AV_TIME_BASE)) { // 从缓存中提取数据，看下有没有，如果没有，就请求，有就执行执行就可以, 另外情况， av_read_frame 已经结束了
+    int VideoDecoder::seek(int64_t time) {
 
-                if (av_seek_frame(formatContext, -1, time, AVSEEK_FLAG_BACKWARD) < 0) {
-                    fprintf(stderr, "Seek error\n");
-                    return;
-                }
-
-                for (StreamInfo *streamInfo: streamInfos) {
-                    avcodec_flush_buffers(streamInfo->getCodecContext());
-                }
-            }
+        if (av_seek_frame(formatContext, -1, time, AVSEEK_FLAG_BACKWARD) < 0) {
+            fprintf(stderr, "Seek error\n");
+            return -1;
         }
+        LOGE("VideoDecoder::seek %lld isEnd %d", time / AV_TIME_BASE, this->isEnd);
+//        if (videoCache->seekVideoCache(
+//                time /
+//                AV_TIME_BASE)) { // 从缓存中提取数据，看下有没有，如果没有，就请求，有就执行执行就可以, 另外情况， av_read_frame 已经结束了
+//            return 0;
+//        }
+//
+//        std::lock_guard seekLock(seekMutex);
+//        std::lock_guard lockGuard(cacheMutex);
+//
+//        videoCache->setEndTimeBase(0);
+//        if (!(this->formatContext != nullptr && !isEnd)) {
+//            LOGE("seek吗 %d", isEnd);
+//            setCacheVideoThread();
+//        }
+//        if (av_seek_frame(formatContext, -1, time, AVSEEK_FLAG_BACKWARD) < 0) {
+//            fprintf(stderr, "Seek error\n");
+//            return -1;
+//        }
+//
+//        for (StreamInfo *streamInfo: streamInfos) {
+//            avcodec_flush_buffers(streamInfo->getCodecContext());
+//        }
+        return 0;
+
     }
 
     void VideoDecoder::hardwareDecoder() {
@@ -462,7 +487,9 @@ namespace fm {
         AVPacket *packet = av_packet_alloc();
         int ret = -1;
         // 读取帧并解码
-        while ((ret = av_read_frame(formatContext, packet)) >= 0 && !isRelease) {
+        while (true) {
+            std::lock_guard lockGuard(cacheMutex);
+            if (!((ret = av_read_frame(formatContext, packet)) >= 0 && !isRelease)) break;
             for (StreamInfo *streamInfo: streamInfos) {
                 if (streamInfo->getStreamIndex() == packet->stream_index) {
                     videoCache->cachePacket(packet, streamInfo->getAvStream()->time_base);
@@ -471,6 +498,8 @@ namespace fm {
             av_packet_unref(packet);
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
+        std::lock_guard lockGuard(cacheMutex);
+        LOGE("cache end");
         if (ret < 0 && ret != AVERROR_EOF) {
             this->isError = true;
             LOGE("error ret %d", ret);
@@ -588,6 +617,4 @@ namespace fm {
     void AVPacketData::setIsError(bool isError) {
         AVPacketData::isError = isError;
     }
-
-
 }

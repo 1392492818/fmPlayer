@@ -526,7 +526,7 @@ int fm::FmEncoder::encoder_video_frame(char *data, int dataLength, long seconds)
 
 }
 
-int fm::FmEncoder::encoder_audio_frame(int16_t *data, int length, long seconds) {
+int fm::FmEncoder::encoder_audio_frame(unsigned char *data, int length, long seconds) {
     OutputStream *ost = &audio_st;
     AVCodecContext *c = ost->enc;
 
@@ -570,14 +570,14 @@ int fm::FmEncoder::encoder_audio_frame(int16_t *data, int length, long seconds) 
     return write_frame(oc, ost->enc, ost->st, frame, ost->tmp_pkt, &ost->prev_packet_pts);
 }
 
-void fm::FmEncoder::add_video_frame(char *data, int dataLength, long seconds) {
+void fm::FmEncoder::add_video_frame(unsigned char *data, int dataLength, long seconds) {
     {
         std::lock_guard lock(this->videoQueueMutex);
         this->videoQueue.push(FrameInfo(data, dataLength, seconds));
     }
 }
 
-void fm::FmEncoder::add_audio_frame(char *data, int dataLength, long seconds) {
+void fm::FmEncoder::add_audio_frame(unsigned char *data, int dataLength, long seconds) {
     {
         std::lock_guard lock(this->audioQueueMutex);
         this->audioQueue.push(FrameInfo(data, dataLength, seconds));
@@ -595,7 +595,7 @@ void fm::FmEncoder::start_encoder_video() {
         }
         std::lock_guard lock(this->videoQueueMutex);
         FrameInfo frameInfo = this->videoQueue.front();
-        encoder_video_frame(frameInfo.getData(), frameInfo.getDataLength(), frameInfo.getSeconds());
+        encoder_video_frame(reinterpret_cast<char *>(frameInfo.getData()), frameInfo.getDataLength(), frameInfo.getSeconds());
         this->videoQueue.pop();
     }
 }
@@ -611,18 +611,18 @@ void fm::FmEncoder::start_encoder_audio() {
         }
         std::lock_guard lock(this->audioQueueMutex);
         FrameInfo frameInfo = this->audioQueue.front();
-        encoder_audio_frame(reinterpret_cast<int16_t *>(frameInfo.getData()),
+        encoder_audio_frame((frameInfo.getData()),
                             frameInfo.getDataLength(), frameInfo.getSeconds());
         this->audioQueue.pop();
     }
 }
 
 
-fm::FrameInfo::FrameInfo(char *data, int dataLength, long seconds) : data(data),
+fm::FrameInfo::FrameInfo(unsigned char *data, int dataLength, long seconds) : data(data),
                                                                      dataLength(dataLength),
                                                                      seconds(seconds) {}
 
-char *fm::FrameInfo::getData() const {
+unsigned char *fm::FrameInfo::getData() const {
     return data;
 }
 

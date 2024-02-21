@@ -60,19 +60,23 @@ public class FmPlayer implements FmPlayerDataCallback {
     private FmGLSurfaceView fmGLSurfaceView;
     private PlayerCallback playerCallback;
     //线程池 任务队列
-    BlockingQueue<Runnable> taskQueue;
+//    BlockingQueue<Runnable> taskQueue;
     ExecutorService executorService;
 
     public FmPlayer() {
 //        Log.e(TAG, " 执行多次");
         this.id = UUID.randomUUID().toString().replace("-", "");
-        taskQueue = new LinkedBlockingQueue<>(10);
+//        taskQueue = new LinkedBlockingQueue<>(10);
         executorService = Executors.newSingleThreadExecutor();
     }
 
     public void play() {
+        Log.e(TAG, "play");
         try {
-            if (executorService.isShutdown()) return;
+            if (executorService.isShutdown()){
+                Log.e("测试","推出了");
+                return;
+            }
             executorService.submit(new Runnable() {
                 @Override
                 public void run() {
@@ -108,6 +112,7 @@ public class FmPlayer implements FmPlayerDataCallback {
             executorService.submit(new Runnable() {
                 @Override
                 public void run() {
+                    Log.e(TAG, "seek start");
                     seek(id, time);
                     Log.e(TAG, time+"设置");
                     isSeek = true;
@@ -140,6 +145,7 @@ public class FmPlayer implements FmPlayerDataCallback {
         this.playerCallback = playerCallback;
         this.fmGLSurfaceView = fmGLSurfaceView;
         this.url = url;
+        this.time = time;
         this.cachePath = cache + "/video_cache/" +Md5.encoder(url);
         this.startPlayer();
     }
@@ -212,7 +218,6 @@ public class FmPlayer implements FmPlayerDataCallback {
 
     @Override
     public void onProgress(long time, long currentTime, long cacheTime) {
-//        Log.e(TAG, "time:"+ time + ", currentTime:" + currentTime);
         playerCallback.progress(currentTime, time, cacheTime, isSeek);
         if (isSeek) isSeek = false;
     }
@@ -240,6 +245,7 @@ public class FmPlayer implements FmPlayerDataCallback {
     }
 
     private void startPlayer(){
+        if (executorService.isShutdown()) return;
         executorService.submit(new Runnable() {
             @Override
             public void run() {

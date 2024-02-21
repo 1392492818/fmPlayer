@@ -106,7 +106,6 @@ fun CameraScreen(
                 AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY
             ).build()
             cameraController.imageAnalysisResolutionSelector = resolutionSelector
-
             cameraController.setImageAnalysisAnalyzer(executor) { imageProxy ->
 //                Log.e("测试", "${imageProxy.imageInfo.rotationDegrees}")
                 imageProxy.image?.let { image ->

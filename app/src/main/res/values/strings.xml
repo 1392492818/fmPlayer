@@ -50,4 +50,16 @@
     <string name="profile_video_camera">视频录制</string>
     <string name="profile_file_upload">文件上传</string>
     <string name="request_error">请求失败，点击重试</string>
+    <string name="profile_logout">退出登录</string>
+    <string name="profile_member_setting">个人设置</string>
+    <string name="profile_tab_my_video">我的视频</string>
+    <string name="profile_tab_my_like_video">喜欢视频</string>
+    <string name="profile_tab_my_friend">我的好友</string>
+
+<!--    视频播放-->
+    <string name="video_screen_edit_next_step">下一步</string>
+    <string name="video_screen_edit_placeholder">输入描述</string>
+    <string name="video_screen_edit_cancel">取消</string>
+    <string name="video_screen_edit_confirm">完成</string>
+    <string name="video_screen_edit_submit">发布</string>
 </resources>

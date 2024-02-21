@@ -105,19 +105,25 @@ public class VideoRenderOES implements GLSurfaceView.Renderer {
     private FloatBuffer vertexBuffer;
     private FloatBuffer textureBuffer;
 
+    public void setFullWidth(boolean fullWidth) {
+        isFullWidth = fullWidth;
+    }
+
+    private boolean isFullWidth = false;
+    private int screenWidth;
     int[] textures = new int[1];
 
 
     public VideoRenderOES(Context context, int width, int height, Consumer<SurfaceTexture> initCompleteRunnable) {
 //        this.width = width;
 //        this.height = height;
+        this.screenWidth = width;
         this.imageWidth = width;
         this.imageHeight = height;
         VERTEX_SHADER_CODE = OpenglUtil.readShaderFromRaw(context, R.raw.vertexshader20);
         FRAGMENT_SHADER_CODE = OpenglUtil.readShaderFromRaw(context, R.raw.fragmentshader20);
         mContext = context;
         videoTextureTransform = new float[16];
-
 
         this.initCompleteRunnable = initCompleteRunnable;
 
@@ -269,7 +275,11 @@ public class VideoRenderOES implements GLSurfaceView.Renderer {
         }
         xOffset = (int) ((newWidth - width) / 2);
         yOffset = (int) ((newHeight - height) / 2);
-        GLES20.glViewport(-xOffset, -yOffset, newWidth, (int) newHeight);
+        if (isFullWidth){
+            GLES20.glViewport(0, -yOffset, screenWidth, (int) newHeight);
+        } else {
+            GLES20.glViewport(-xOffset, -yOffset, newWidth, (int) newHeight);
+        }
     }
 
 
