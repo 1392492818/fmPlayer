@@ -42,6 +42,8 @@ namespace fm {
     }
 
     void FmPlayer::start() {
+        std::lock_guard lockGuard(startMutex);
+        if(!this->isRunning) return;
         auto decoderMedia = std::bind(&FmPlayer::decoderMedia, this);
         // 创建线程，并调用绑定的成员函数
         this->decoderMediaThread = std::thread(decoderMedia);
@@ -75,9 +77,10 @@ namespace fm {
     }
 
     void FmPlayer::stop() {
-        {
-            std::lock_guard<std::mutex> lockDecoderMutex(decoderMutex);  // 解码视频互斥锁
 
+        {
+            std::lock_guard lockGuard(startMutex);
+            std::lock_guard<std::mutex> lockDecoderMutex(decoderMutex);  // 解码视频互斥锁
             std::lock_guard<std::mutex> playerLock(playerMutex);
             this->isRunning = false; //锁存在先后顺序，先锁作用域大的
             this->isPlayer = false;
