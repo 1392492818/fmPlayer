@@ -177,6 +177,11 @@ fun videoGroups(
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
     val screenWidth = configuration.screenWidthDp.dp
+    LaunchedEffect(videoGroupPage){
+        videoGroupPage?.let {
+            isFinishing = !it.hasNextPage
+        }
+    }
     SwipeRefresh(
         items = videoGroupPage?.getData<List<VideoGroupResponse>>()?.filter { it.id != id.value },
         refreshing = isRefreshing,
@@ -304,7 +309,10 @@ fun videoScreen(
     if (videoGroup != null) {
         Scaffold { innerPadding ->
             Column(modifier = Modifier.padding(innerPadding)) {
-                selectSource = videoGroup?.video!![selectIndex].source
+                videoGroup?.let {
+                    if(!it.video.isEmpty())
+                     selectSource = it.video[selectIndex].source
+                }
                 VideoPlayer(
                     path = baseUrl + selectSource,
                     customModifier = Modifier.height(250.dp),

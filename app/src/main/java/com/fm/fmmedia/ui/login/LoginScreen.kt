@@ -61,207 +61,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.fm.fmmedia.R
 import com.fm.fmmedia.compose.loading
+import com.fm.fmmedia.compose.textInput
 import com.fm.fmmedia.data.AccessToken
 import com.fm.fmmedia.repository.LoginRepository
 import com.fm.fmmedia.ui.theme.FmMediaTheme
 import com.fm.fmmedia.viewmodel.AccessTokenViewModel
 import com.fm.fmmedia.viewmodel.LoginViewModel
 
-
-/**
-@param placeholder 输入提示
-@param supporting 底部名字显示
-@param label  显示输入数据内容
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun textInput(
-    placeholder: String = "",
-    supporting: String = "",
-    label: String = "",
-    isPassword: Boolean = false,
-    imageVector: ImageVector = Icons.Default.Person,
-    onValueChange: (text: String) -> Unit,
-    modifier: Modifier = Modifier
-        .fillMaxWidth()
-        .height(60.dp)
-        .padding(5.dp)
-) {
-
-    var text by remember {
-        mutableStateOf("")
-    }
-
-    TextField(
-        modifier = modifier
-            .clip(shape = CircleShape.copy(all = CornerSize(8.dp)))
-            .background(FmMediaTheme.colors.uiFloated),
-        value = text,
-        singleLine = true,
-        visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
-        keyboardOptions = if (isPassword) KeyboardOptions(keyboardType = KeyboardType.Password) else KeyboardOptions(
-            keyboardType = KeyboardType.Text
-        ),
-        onValueChange = {
-            onValueChange(it)
-            text = it
-        },
-        textStyle = TextStyle(color = Color.Black, fontSize = 12.sp), // 设置字体颜色
-        placeholder = { Text(placeholder, fontSize = 12.sp) },
-        //开始和结束时的图标
-        leadingIcon = { Icon(imageVector = imageVector, contentDescription = null) },
-
-        label = { Text(label, color = Color.Black, fontSize = 12.sp) },
-        colors = TextFieldDefaults.outlinedTextFieldColors(
-            focusedBorderColor = FmMediaTheme.colors.iconPrimary, // 设置焦点时的边框颜色
-//            unfocusedBorderColor = FmMediaTheme.colors.iconPrimary, // 设置非焦点时的边框颜色
-            cursorColor = FmMediaTheme.colors.iconPrimary
-        )
-    )
-}
-
-
-@Composable
-fun forgetPassword() {
-    Column(
-        modifier = Modifier
-            .fillMaxHeight()
-            .fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center  // 垂直居中
-    ) {
-        Text(text = stringResource(id = R.string.forget_title), fontSize = 50.sp)
-        textInput(label = stringResource(id = R.string.login_label),
-            imageVector = Icons.Default.Person,
-            placeholder = stringResource(
-                id = R.string.login_placeholder
-            ),
-            onValueChange = { text -> Log.e("logininput", text) })
-        textInput(label = stringResource(id = R.string.password_label),
-            imageVector = Icons.Default.Lock,
-            isPassword = true,
-            placeholder = stringResource(
-                id = R.string.password_placeholder
-            ),
-            onValueChange = { text -> Log.e("logininput", text) })
-
-
-        Row() {
-            textInput(
-                label = stringResource(id = R.string.register_verification_code),
-                imageVector = Icons.Default.MailOutline,
-                placeholder = stringResource(
-                    id = R.string.register_verification_placeholder
-                ),
-                onValueChange = { text -> Log.e("logininput", text) },
-                modifier = Modifier
-                    .weight(2f)
-                    .padding(16.dp)
-            )
-            Button(
-                onClick = { /*TODO*/ },
-                modifier = Modifier
-                    .weight(1f)
-                    .heightIn(min = 80.dp)
-                    .align(CenterVertically)
-                    .padding(16.dp),
-                shape = RoundedCornerShape(10.dp),
-            ) {
-                Text(
-                    text = stringResource(id = R.string.register_request_verification_code),
-                    fontSize = 10.sp
-                )
-            }
-        }
-        Button(
-            onClick = { /*TODO*/ }, modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            contentPadding = PaddingValues(top = 15.dp, bottom = 15.dp)
-        ) {
-            Text(
-                text = stringResource(id = R.string.forget_button_text),
-                fontSize = 18.sp
-            )
-        }
-    }
-}
-
-/**
- * 用户注册
- */
-@Composable
-fun registerScreen() {
-    Column(
-        modifier = Modifier
-            .fillMaxHeight()
-            .fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center  // 垂直居中
-    ) {
-
-        Text(text = stringResource(id = R.string.register_title), fontSize = 50.sp)
-        textInput(label = stringResource(id = R.string.login_label),
-            imageVector = Icons.Default.Person,
-            placeholder = stringResource(
-                id = R.string.login_placeholder
-            ),
-            onValueChange = { text -> Log.e("logininput", text) })
-        textInput(label = stringResource(id = R.string.password_label),
-            imageVector = Icons.Default.Lock,
-            isPassword = true,
-            placeholder = stringResource(
-                id = R.string.password_placeholder
-            ),
-            onValueChange = { text -> Log.e("logininput", text) })
-        textInput(label = stringResource(id = R.string.confirm_password_label),
-            imageVector = Icons.Default.Lock,
-            isPassword = true,
-            placeholder = stringResource(
-                id = R.string.password_placeholder
-            ),
-            onValueChange = { text -> Log.e("logininput", text) })
-
-        Row() {
-            textInput(
-                label = stringResource(id = R.string.register_verification_code),
-                imageVector = Icons.Default.MailOutline,
-                placeholder = stringResource(
-                    id = R.string.register_verification_placeholder
-                ),
-                onValueChange = { text -> Log.e("logininput", text) },
-                modifier = Modifier
-                    .weight(2f)
-                    .padding(16.dp)
-            )
-            Button(
-                onClick = { /*TODO*/ },
-                modifier = Modifier
-                    .weight(1f)
-                    .heightIn(min = 80.dp)
-                    .align(CenterVertically)
-                    .padding(16.dp),
-                shape = RoundedCornerShape(10.dp),
-            ) {
-                Text(
-                    text = stringResource(id = R.string.register_request_verification_code),
-                    fontSize = 10.sp
-                )
-            }
-        }
-        Button(
-            onClick = { /*TODO*/ }, modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            contentPadding = PaddingValues(top = 15.dp, bottom = 15.dp)
-        ) {
-            Text(
-                text = stringResource(id = R.string.register_button_text),
-                fontSize = 18.sp
-            )
-        }
-    }
-}
 
 /**
  * 用户登录
@@ -345,16 +151,23 @@ fun loginScreen(
                     )
                 }
                 Box(modifier = Modifier.padding(0.dp, 10.dp)) {
-                    textInput(label = stringResource(id = R.string.login_label),
+                    textInput(
+                        label = stringResource(id = R.string.login_label),
                         imageVector = Icons.Default.Person,
                         placeholder = stringResource(
                             id = R.string.login_placeholder
                         ),
-                        onValueChange = { text -> account = text })
+                        onValueChange = { text -> account = text },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(60.dp)
+                            .padding(5.dp)
+                    )
                 }
 
                 Box(modifier = Modifier.padding(0.dp, 10.dp)) {
-                    textInput(label = stringResource(id = R.string.password_label),
+                    textInput(
+                        label = stringResource(id = R.string.password_label),
                         imageVector = Icons.Default.Lock,
                         isPassword = true,
                         placeholder = stringResource(
@@ -363,7 +176,12 @@ fun loginScreen(
                         onValueChange = { text ->
                             Log.e("测试", text)
                             password = text
-                        })
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(60.dp)
+                            .padding(5.dp)
+                    )
                 }
                 Row(
                     modifier = Modifier

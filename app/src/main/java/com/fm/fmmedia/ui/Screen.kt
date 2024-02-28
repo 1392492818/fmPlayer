@@ -45,7 +45,10 @@ sealed class Screen(
         fun createRoute(path: String) = "VideoUpload/${path}"
     }
 
+    object Short : Screen("Short")
+
     object Live : Screen("Live")
+
 
     object Profile : Screen("Profile")
 
@@ -56,6 +59,15 @@ sealed class Screen(
         })
     ) {
         fun createRoute(name: Int) = "Video/${name}"
+    }
+
+    object VideoPage : Screen(
+        route = "videoPage/{id}",
+        navArguments = listOf(navArgument("id") {
+            type = NavType.IntType
+        })
+    ) {
+        fun createRoute(id: Int) = "videoPage/${id}"
     }
 
     object Register : Screen("register") {

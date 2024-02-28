@@ -29,7 +29,7 @@ class VideoGroupRepository: BaseRepository() {
                 val oldList: List<Any>? = page.value?.list
                 val nextList: List<Any>? = videoCategoryPage?.list
                 if (oldList != null && nextList != null) {
-                    videoCategoryPage?.list = oldList.plus(nextList)
+                    videoCategoryPage?.list = oldList.plus(nextList).toMutableList()
                     page.value = videoCategoryPage
                 }
 

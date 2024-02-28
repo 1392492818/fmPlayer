@@ -11,6 +11,7 @@ import com.fm.fmmedia.api.request.Login
 import com.fm.fmmedia.api.response.LoginResponse
 import com.fm.fmmedia.api.response.MemberInfoResponse
 import com.fm.fmmedia.api.response.Page
+import com.fm.fmmedia.api.response.PublishResponse
 import com.fm.fmmedia.api.response.Result
 import com.fm.fmmedia.api.response.VideoGroupResponse
 import com.fm.fmmedia.data.Word
@@ -23,9 +24,16 @@ import retrofit2.http.Query
 
 class MemberInfoViewModel(private val repository: MemberInfoRepository): BaseVideoModel(repository) {
     val memberInfo: LiveData<MemberInfoResponse?> = repository.memberInfo.asLiveData()
+    val memberPublishInfo: LiveData<PublishResponse?> = repository.memberPublishInfo.asLiveData()
     fun memberInfo(accessToken:String){
         viewModelScope.launch {
             repository.memberInfo(accessToken)
+        }
+    }
+
+    fun memberPublishInfo(accessToken: String){
+        viewModelScope.launch {
+            repository.memberPublish(accessToken)
         }
     }
 

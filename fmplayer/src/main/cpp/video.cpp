@@ -170,37 +170,39 @@ JNIEXPORT void JNICALL
 Java_com_fm_fmplayer_encoder_FmEncoder_encoder(JNIEnv *env, jclass thiz, jstring path, jint width,
                                                jint height,
                                                jint format, jint rotate, jint sample_rate,
-                                               jint channel) {
+                                               jint channel, jint type) {
     const char *str = env->GetStringUTFChars(path, NULL);
 
     videoEncoderManager->init(const_cast<char *>(str), width, height,
-                              static_cast<AVPixelFormat>(format), rotate, sample_rate, channel);
+                              static_cast<AVPixelFormat>(format), rotate, sample_rate, channel, type);
     env->ReleaseStringUTFChars(path, str);
 
 }
 
 
 extern "C"
-JNIEXPORT void JNICALL
+JNIEXPORT jboolean JNICALL
 Java_com_fm_fmplayer_encoder_FmEncoder_addVideoFrame(JNIEnv *env, jclass thiz, jbyteArray data,
                                                      jlong seconds) {
 
     jsize len = env->GetArrayLength(data);
     jbyte *bytes = env->GetByteArrayElements(data, NULL);
-    videoEncoderManager->addVideoFrame(reinterpret_cast<unsigned char *>(bytes), len, seconds);
+    bool isSuccess = videoEncoderManager->addVideoFrame(reinterpret_cast<unsigned char *>(bytes), len, seconds);
 
     env->ReleaseByteArrayElements(data, bytes, JNI_ABORT);
+    return isSuccess;
 }
 
 extern "C"
-JNIEXPORT void JNICALL
+JNIEXPORT jboolean JNICALL
 Java_com_fm_fmplayer_encoder_FmEncoder_addAudioFrame(JNIEnv *env, jclass thiz, jbyteArray data,
                                                      jlong seconds) {
 
     jsize len = env->GetArrayLength(data);
     jbyte *bytes = env->GetByteArrayElements(data, NULL);
-    videoEncoderManager->addAudioFrame(reinterpret_cast<unsigned char * >(bytes), len, seconds);
+    bool isSuccess = videoEncoderManager->addAudioFrame(reinterpret_cast<unsigned char * >(bytes), len, seconds);
     env->ReleaseByteArrayElements(data, bytes, JNI_ABORT);
+    return isSuccess;
 
 }
 extern "C"

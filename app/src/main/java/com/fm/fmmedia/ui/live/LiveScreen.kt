@@ -1,148 +1,118 @@
 package com.fm.fmmedia.ui.live
 
 import android.os.Build
-import android.util.Log
 import androidx.annotation.RequiresApi
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.pager.VerticalPager
-import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.material.BottomAppBar
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
+import androidx.navigation.NavController
 import androidx.navigation.NavHostController
-import com.fm.fmmedia.compose.FmGlView
-import com.fm.fmmedia.compose.LifecycleEffect
-import com.fm.fmmedia.compose.VideoPlayer
+import com.fm.fmmedia.api.response.LiveResponse
+import com.fm.fmmedia.api.response.ShortVideoResponse
+import com.fm.fmmedia.compose.LiveVerticalPagerVideo
+import com.fm.fmmedia.compose.VerticalPagerVideo
+import com.fm.fmmedia.compose.loading
+import com.fm.fmmedia.data.AccessToken
 import com.fm.fmmedia.ui.home.FmBottomNavLayout
 import com.fm.fmmedia.ui.home.HomeSections
-import kotlinx.coroutines.delay
+import com.fm.fmmedia.ui.profile.emptyData
+import com.fm.fmmedia.viewmodel.LiveViewModel
+import com.google.accompanist.systemuicontroller.SystemUiController
+import com.google.accompanist.systemuicontroller.rememberSystemUiController
 
 @RequiresApi(Build.VERSION_CODES.Q)
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun liveScreen(navController: NavHostController) {
+fun LiveScreen(navController: NavHostController, liveViewModel: LiveViewModel) {
+    val systemUiController: SystemUiController = rememberSystemUiController()
+    systemUiController.setStatusBarColor(color = Color.Black)
 
-    var pageCount by remember {
-        mutableIntStateOf(10)
-    }
-
-    val initialPage = 0
-
-    var pagerState = rememberPagerState(pageCount = {
-        pageCount
-    }, initialPage = initialPage)
-
-    var currentPageNum by remember {
-        mutableStateOf(initialPage)
-    }
-
-
-    LaunchedEffect(pagerState) {
-        // Collect from the a snapshotFlow reading the currentPage
-        snapshotFlow { pagerState.currentPage }.collect { page ->
-            // Do something with each page change, for example:
-            // viewModel.sendPageSelectedEvent(page)
-            currentPageNum = page
-            Log.d("Page change", "Page changed to $page")
-        }
-    }
     Scaffold(
         bottomBar = {
-
             val currentRoute = navController.currentBackStackEntry?.destination?.route
             if (currentRoute != null) {
                 FmBottomNavLayout(HomeSections.values(), currentRoute, navController)
             }
-
         }
     ) { innerPadding ->
-        Row {
-            // Display 10 items
-            VerticalPager(state = pagerState) { page ->
-                // Our page content
-                if (page == pageCount - 1) {
-                    pageCount += 10
+        // Display 10 items
+        val page by liveViewModel.page.observeAsState()
+        LaunchedEffect(Unit) {
+            liveViewModel.pageLive()
+        }
+        val liveVideoList = page?.getData<MutableList<LiveResponse>>()
+
+        var isLoading by remember {
+            mutableStateOf(true)
+        }
+        LaunchedEffect(page) {
+            isLoading = false
+        }
+
+        Box(
+            modifier = Modifier
+                .systemBarsPadding()
+                .padding(0.dp, 0.dp, 0.dp, 58.dp)
+        ) {
+            liveVideoList?.let {
+                if (!it.isEmpty())
+                    LiveVerticalPagerVideo(
+                        pageData = it,
+                        initialPage = 0,
+                        navController = navController,
+                        isShowDelete = false,
+                        onPageEnd = {
+                            if (page?.hasNextPage == true) {
+                                isLoading = true
+                                val pageNum = page?.nextPage
+                                val pageSize = page?.pageSize
+                                if (pageNum != null && pageSize != null) {
+                                    liveViewModel.pageLive(
+                                        pageNum = pageNum,
+                                        pageSize = pageSize,
+                                        isNext = true,
+                                    )
+                                }
+                            }
+                        })
+            }
+            if (liveVideoList.isNullOrEmpty()) {
+                Box(modifier = Modifier
+                    .fillMaxSize()
+                    .clickable {
+                        isLoading = true
+                        liveViewModel.pageLive()
+                    }, contentAlignment = Alignment.Center
+                ) {
+                    emptyData(modifier = Modifier
+                        .align(Alignment.Center)
+                        .fillMaxWidth()
+                        .clickable {
+
+                        })
                 }
-                PageContent(
-                    text = page.toString(),
-                    index = page,
-                    currentPageNum = currentPageNum,
-                    modifier = Modifier.padding(
-                        0.dp,
-                        0.dp,
-                        0.dp,
-                        58.dp
-                    )
-                )
+
+            }
+            if (isLoading) {
+                loading()
             }
         }
-    }
-}
-
-
-@RequiresApi(Build.VERSION_CODES.Q)
-@Composable
-fun PageContent(
-    text: String,
-    index: Int,
-    currentPageNum: Int,
-    modifier: Modifier = Modifier
-) {
-    val context = LocalContext.current
-
-    val page = index;
-
-    var isRelease by remember {
-        mutableStateOf(false)
-    }
-
-    LaunchedEffect(currentPageNum) {
-//        if (currentPageNum != page) {
-//            Log.e("currentPageNum", "current: ${currentPageNum} , page :${page}")
-            if (currentPageNum != page) {
-                isRelease = true
-            } else {
-                isRelease = false
-            }
-//        }
-    }
-    val path = "${LocalContext.current.filesDir.absoluteFile}/encoder.mp4"
-
-    // 页面创建时执行一次
-    Box(modifier = modifier) {
-        VideoPlayer(
-            path = path,
-            customModifier = Modifier.fillMaxSize(),
-            isDraggable = false,
-            isShowBack = false,
-            isFullWidth = true,
-            isReleasePlayer = isRelease
-        )
     }
 }

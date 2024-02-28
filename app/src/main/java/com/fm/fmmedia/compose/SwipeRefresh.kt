@@ -11,6 +11,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.MutatorMutex
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -109,7 +110,8 @@ fun <T : Any> SwipeRefresh(
             Row(modifier.fillMaxSize()) { //没有数据时候界面
                 videoItem(
                     modifier = Modifier
-                        .fillMaxSize(),
+                        .fillMaxSize()
+                        .clickable { onRefresh() },
                     name = "",
                     imageUrl = R.drawable.not_data
                 )
@@ -132,7 +134,7 @@ fun <T : Any> SwipeRefresh(
                 modifier = Modifier.background(colorResource(R.color.white))
             ) {
                 LazyVerticalGrid(
-                    columns =  columns,
+                    columns = columns,
                     modifier = modifier,
                     state = listState,
                     contentPadding = contentPadding,
@@ -167,9 +169,9 @@ fun <T : Any> SwipeRefresh(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp),
+                                .padding(5.dp),
                             contentAlignment = Alignment.Center
-                        ){
+                        ) {
                             MoreIndicator(finishing)
                         }
                     }
@@ -184,7 +186,6 @@ fun <T : Any> SwipeRefresh(
 //            ){
 //                MoreIndicator(finishing)
 //            }
-
 
 
             // 上次是否正在滑动

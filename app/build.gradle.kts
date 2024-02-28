@@ -36,14 +36,19 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            buildConfigField("String", "API_BASE_URL", "\"http://192.168.0.149:8080/api/\"")
-            buildConfigField("String", "VIDEO_URL", "\"http://192.168.0.149:9090/videos/\"")
+            buildConfigField("String", "API_BASE_URL", "\"http://api.duxingzhe.top/api/\"")
+            buildConfigField("String", "VIDEO_URL", "\"http://media.duxingzhe.top/videos/\"")
+            buildConfigField("String", "RTMP_BASE_URL", "\"rtmp://api.duxingzhe.top:1935/live/\"")
 
         }
         debug {
+//            buildConfigField("String", "API_BASE_URL", "\"http://192.168.31.163:8080/api/\"")
+//            buildConfigField("String", "VIDEO_URL", "\"http://192.168.31.163:9090/videos/\"")
+//            buildConfigField("String", "RTMP_BASE_URL", "\"rtmp://192.168.31.163:1935/live/\"")
 
-            buildConfigField("String", "API_BASE_URL", "\"http://192.168.0.149:8080/api/\"")
-            buildConfigField("String", "VIDEO_URL", "\"http://192.168.0.149:9090/videos/\"")
+            buildConfigField("String", "API_BASE_URL", "\"http://api.duxingzhe.top/api/\"")
+            buildConfigField("String", "VIDEO_URL", "\"http://media.duxingzhe.top/videos/\"")
+                        buildConfigField("String", "RTMP_BASE_URL", "\"rtmp://api.duxingzhe.top:1935/live/\"")
 
         }
     }

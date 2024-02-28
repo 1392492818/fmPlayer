@@ -68,27 +68,33 @@ public class ImageData {
         int index = 0;
 
         for (int y = 0; y < height; y++) {
+            int yPlanRow = y * yPlanRowStride;
             for (int x = 0; x < yRowStride; x++) {
-                int readIndex = y * yPlanRowStride + x * yPlanPixelStride;
+                int readIndex =  yPlanRow+ x * yPlanPixelStride;
                 data[index++] = yData[readIndex];
             }
         }
 
+        int uvIndex = 0;
+        int uvSize = uvWidth * uvHeight;
+        int uvRow = uRowStride / uPlanPixelStride;
 
         for (int y = 0; y < uvHeight; y++) {
-            for (int x = 0; x < uRowStride / uPlanPixelStride; x++) {
-                int readIndex = y * uPlanRowStride + x * uPlanPixelStride;
+            int yPlanRow = y * uPlanRowStride;
+            for (int x = 0; x < uvRow; x++) {
+                int readIndex = yPlanRow + x * uPlanPixelStride;
                 data[index++] = uData[readIndex];
+                data[uvSize + ySize + uvIndex++] = vData[readIndex];
             }
         }
 
 
-        for (int y = 0; y < uvHeight; y++) {
-            for (int x = 0; x < vRowStride / vPlanPixelStride; x++) {
-                int readIndex = y * vPlanRowStride + x * vPlanPixelStride;
-                data[index++] = vData[readIndex];
-            }
-        }
+//        for (int y = 0; y < uvHeight; y++) {
+//            for (int x = 0; x < vRowStride / vPlanPixelStride; x++) {
+//                int readIndex = y * vPlanRowStride + x * vPlanPixelStride;
+//                data[index++] = vData[readIndex];
+//            }
+//        }
 
 
         return data;

@@ -9,7 +9,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Modifier
@@ -17,6 +16,8 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.fm.fmmedia.repository.FileUploadRepository
+import com.fm.fmmedia.repository.LiveRepository
 import com.fm.fmmedia.repository.LoginRepository
 import com.fm.fmmedia.repository.MemberInfoRepository
 import com.fm.fmmedia.repository.ShortVideoRepository
@@ -25,14 +26,18 @@ import com.fm.fmmedia.ui.login.forgetPassword
 import com.fm.fmmedia.ui.login.loginScreen
 import com.fm.fmmedia.ui.login.registerScreen
 import com.fm.fmmedia.ui.home.homeScreen
-import com.fm.fmmedia.ui.live.liveScreen
+import com.fm.fmmedia.ui.live.LiveScreen
 import com.fm.fmmedia.ui.profile.profileScreen
 import com.fm.fmmedia.ui.record.RecordScreen
 import com.fm.fmmedia.ui.record.VideoEditScreen
 import com.fm.fmmedia.ui.record.videoUploadScreen
+import com.fm.fmmedia.ui.short.ShortScreen
 import com.fm.fmmedia.ui.theme.FmMediaTheme
+import com.fm.fmmedia.ui.video.VideoPageScreen
 import com.fm.fmmedia.ui.video.videoScreen
 import com.fm.fmmedia.viewmodel.AccessTokenViewModel
+import com.fm.fmmedia.viewmodel.FileUploadViewModel
+import com.fm.fmmedia.viewmodel.LiveViewModel
 import com.fm.fmmedia.viewmodel.LoginViewModel
 import com.fm.fmmedia.viewmodel.MemberInfoViewModel
 import com.fm.fmmedia.viewmodel.ShortVideoViewModel
@@ -88,6 +93,7 @@ fun ProfileScreen(
 }
 
 
+@RequiresApi(Build.VERSION_CODES.Q)
 @Composable
 fun fmAndroidApp(
     activity: Activity,
@@ -130,8 +136,10 @@ fun fmNavHost(
         VideoGroupRepository()
     )
     val loginViewModel: LoginViewModel = LoginViewModel(LoginRepository())
+    val liveVideoViewModel = LiveViewModel(LiveRepository())
     val memberInfoViewModel = MemberInfoViewModel(MemberInfoRepository())
     val shortVideoViewModel = ShortVideoViewModel(ShortVideoRepository())
+    val fileUploadViewModel = FileUploadViewModel(FileUploadRepository())
 
     NavHost(
         navController = navController,
@@ -164,10 +172,19 @@ fun fmNavHost(
             route = Screen.Register.route,
             deepLinks = Screen.Register.deepLinks
         ) {
-            registerScreen()
+            registerScreen(loginViewModel = loginViewModel, onBack = {
+                navController.popBackStack()
+            }, onHome = {
+                navController.navigate(Screen.Home.route) {
+                    launchSingleTop = true
+                    popUpTo(Screen.Login.route) {
+                        inclusive = true
+                    }
+                }
+            }, accessTokenViewModel = accessTokenViewModel)
         }
         composable(route = Screen.ReCord.route) {
-            RecordScreen(onVideoUpload = { path ->
+            RecordScreen(memberInfoViewModel, onVideoUpload = { path ->
                 navController.navigate(
                     Screen.VideoEdit.createRoute(
                         URLEncoder.encode(
@@ -205,6 +222,7 @@ fun fmNavHost(
                     navController = navController,
                     path = it,
                     accessTokenViewModel = accessTokenViewModel,
+                    fileUploadViewModel = fileUploadViewModel,
                     redirect = {
                         navController.navigate(Screen.Profile.route) {
                             launchSingleTop = true
@@ -241,10 +259,19 @@ fun fmNavHost(
 //                navController.navigate(Screen.VideoEdit.createRoute(URLEncoder.encode(path, "utf-8")))
 //            })
         }
-
-
         composable(route = Screen.Live.route) {
-            liveScreen(navController = navController)
+            LiveScreen(
+                navController = navController,
+                liveViewModel = liveVideoViewModel
+            )
+        }
+
+        composable(route = Screen.Short.route) {
+            ShortScreen(
+                navController = navController,
+                shortVideoViewModel = shortVideoViewModel,
+                accessTokenViewModel = accessTokenViewModel
+            )
         }
         composable(route = Screen.Profile.route) {
             val accessTokenList by accessTokenViewModel.accessTokenList.observeAsState()
@@ -274,7 +301,7 @@ fun fmNavHost(
                     onRecord = {
                         navController.navigate(Screen.ReCord.route)
                     },
-                    onVideoUpload = {path->
+                    onVideoUpload = { path ->
                         navController.navigate(
                             Screen.VideoEdit.createRoute(
                                 URLEncoder.encode(
@@ -299,5 +326,20 @@ fun fmNavHost(
 //                videoScreen(id = id)
             }
         }
+
+        composable(route = Screen.VideoPage.route, arguments = Screen.VideoPage.navArguments) {
+
+            val id: Int? = it.arguments?.getInt("id")
+            Log.e("id", id.toString());
+            if (id != null) {
+                VideoPageScreen(
+                    index = id,
+                    shortVideoViewModel = shortVideoViewModel,
+                    accessTokenViewModel = accessTokenViewModel,
+                    navController = navController
+                )
+            }
+        }
+
     }
 }

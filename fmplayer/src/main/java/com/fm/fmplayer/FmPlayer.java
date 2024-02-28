@@ -70,7 +70,7 @@ public class FmPlayer implements FmPlayerDataCallback {
         executorService = Executors.newSingleThreadExecutor();
     }
 
-    public void play() {
+    public synchronized void play() {
         Log.e(TAG, "play");
         try {
             if (executorService.isShutdown()){
@@ -88,7 +88,7 @@ public class FmPlayer implements FmPlayerDataCallback {
         }
     }
 
-    public void setSpeed(float speed){
+    public synchronized void setSpeed(float speed){
         try {
             if (executorService.isShutdown()) return;
             executorService.submit(new Runnable() {
@@ -102,7 +102,7 @@ public class FmPlayer implements FmPlayerDataCallback {
         }
     }
 
-    public void seek(long time) {
+    public synchronized void seek(long time) {
         try {
             if (executorService.isShutdown()) {
                 Log.e(TAG, "没办法设置");
@@ -123,7 +123,7 @@ public class FmPlayer implements FmPlayerDataCallback {
         }
     }
 
-    public void pause() {
+    public synchronized void pause() {
         try {
             if (executorService.isShutdown()) return;
             executorService.submit(new Runnable() {
@@ -140,7 +140,7 @@ public class FmPlayer implements FmPlayerDataCallback {
 
 
     public void start(String url, Surface surface, FmGLSurfaceView fmGLSurfaceView, PlayerCallback playerCallback, long time, String cache) {
-        Log.e(TAG, id);
+        Log.e(TAG, id + ",url:" + url);
         this.surface = surface;
         this.playerCallback = playerCallback;
         this.fmGLSurfaceView = fmGLSurfaceView;
@@ -150,14 +150,17 @@ public class FmPlayer implements FmPlayerDataCallback {
         this.startPlayer();
     }
 
-    public void release() {
+    public synchronized  void release() {
         isLoop = false;
-        if (this.executorService.isShutdown()) return;
+        if (this.executorService.isShutdown()) {
+            Log.e(TAG, "release");
+            return;
+        }
         this.executorService.submit(new Runnable() {
             @Override
             public void run() {
                 try {
-                    Log.e(TAG, id);
+                    Log.e(TAG, "stop:"+id);
                     stop(id);
                 } catch (Exception e) {
                     Log.e(TAG, "stop" + e.getMessage());
@@ -165,8 +168,8 @@ public class FmPlayer implements FmPlayerDataCallback {
 
             }
         });
-        this.executorService.shutdown();
         synchronized (this) {
+            this.executorService.shutdown();
             if (fmDecoder != null) fmDecoder.release();
             if (audioTrack != null) {
                 audioTrack.stop();
@@ -245,19 +248,25 @@ public class FmPlayer implements FmPlayerDataCallback {
     }
 
     private void startPlayer(){
-        if (executorService.isShutdown()) return;
-        executorService.submit(new Runnable() {
-            @Override
-            public void run() {
-                startPlayer(url, FmPlayer.this, id, time, cachePath);
-            }
-        });
+        try{
+            if (executorService.isShutdown()) return;
+            executorService.submit(new Runnable() {
+                @Override
+                public void run() {
+                    startPlayer(url, FmPlayer.this, id, time, cachePath);
+                }
+            });
+        }catch (Exception e) {
+            Log.e(TAG, e.getMessage());
+        }
+
     }
 
     @Override
     public void onEnd(boolean isError) {
         if(!isError && isLoop){
             startPlayer();
+            time = 0;
             play();
             return;
         }

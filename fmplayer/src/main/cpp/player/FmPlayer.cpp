@@ -46,46 +46,54 @@ namespace fm {
         // 创建线程，并调用绑定的成员函数
         this->decoderMediaThread = std::thread(decoderMedia);
         decoderMediaThread.detach();
-        this->signal++;
+        plusSignal();
 
         // 视频流解码
         auto video = std::bind(&FmPlayer::decoderVideo, this);
         this->videoDecoderThread = std::thread(video);
         videoDecoderThread.detach();
-        this->signal++;
+        plusSignal();
 
         // 音频流解码
         auto audio = std::bind(&FmPlayer::decoderAudio, this);
         this->audioDecoderThread = std::thread(audio);
         audioDecoderThread.detach();
-        this->signal++;
+        plusSignal();
 
         // 视频流渲染
         auto videoRender = std::bind(&FmPlayer::renderVideo, this);
         this->videoRenderThread = std::thread(videoRender);
         videoRenderThread.detach();
-        this->signal++;
+        plusSignal();
 
         // 音频流播放
         auto audioRender = std::bind(&FmPlayer::renderAudio, this);
         this->audioRenderThread = std::thread(audioRender);
         audioRenderThread.detach();
-        this->signal++;
+        plusSignal();
 
     }
 
     void FmPlayer::stop() {
         {
-
             std::lock_guard<std::mutex> lockDecoderMutex(decoderMutex);  // 解码视频互斥锁
+
             std::lock_guard<std::mutex> playerLock(playerMutex);
             this->isRunning = false; //锁存在先后顺序，先锁作用域大的
             this->isPlayer = false;
             this->isStop = true;
+            this->isDecoderEnd = true;
+
             clearAllQueue();
+            LOGE("stop");
+
 
         }
         while (this->signal != 0) {
+            LOGE("signal %d isEnd %d", signal, this->isDecoderEnd);
+            LOGE("audio frame size %d, video frame size %d, audio packet size %d, video packet size %d",
+                 this->audioFrameQueue.size(), this->videoFrameQueue.size(),
+                 this->audioPacketQueue.size(), this->videoPacketQueue.size());
 //            qDebug() << "signal:" << this->signal
 //                     << ", running:" << this->isRunning
 //                     << ", videoPacketSize:" << this->videoPacketQueue.size()
@@ -94,7 +102,10 @@ namespace fm {
 //                     << ", audioFrame:" << this->audioFrameQueue.size();
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
+        LOGE("fmPlayer停止了");
+
         this->videoDecoder = nullptr;
+
         this->videoCodecContext = nullptr;
         this->audioCodecContext = nullptr;
         this->videoStream = nullptr;
@@ -104,16 +115,17 @@ namespace fm {
         this->graph = nullptr;
         this->src = nullptr;
         this->hwSwsContext = nullptr;
+        LOGE("fmPlayer停止了");
     }
 
 
-    void FmPlayer::startPlayer(const char *input, long time,string cache) {
+    void FmPlayer::startPlayer(const char *input, long time, string cache) {
 //        qDebug() << input;
         this->input = input;
 //        std::thread([&]() {
         std::lock_guard<std::mutex> lockGuard(decoderMutex);
         this->videoDecoder = std::make_unique<VideoDecoder>(this->input.data(), false);
-        if (this->videoDecoder->init(time,cache)) {
+        if (this->videoDecoder->init(time, cache)) {
             if (!this->videoDecoder->isPrepare1()) return;
             this->isRunning = true;
             this->isStop = false;
@@ -144,18 +156,31 @@ namespace fm {
                     continue;
                 }
             }
+            {
+                std::lock_guard<std::mutex> seekLock(decoderSeekMutex);
+                if (this->isDecoderEnd && this->allQueueIsEmpty()) {
+                    this->isRunning = false;
+                    break;
+                }
+                if (this->isDecoderEnd) {
+//                LOGE("isDecoderEnd %d", this->isDecoderEnd);
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                    continue;
+                }
+            }
             AVPacketData avPacketData;
             { // seek 互斥锁
 
                 std::lock_guard<std::mutex> seekLock(decoderSeekMutex);
                 avPacketData = this->videoDecoder->readPacket();
-                if(avPacketData.isError1()) {
+                if (avPacketData.isError1()) {
                     this->isError = true;
                 }
                 if (avPacketData.isEnd1()) {
-                    LOGE("运行结束");
-                    this->isRunning = false;
-                    break;
+//                    LOGE("运行结束");
+//                    this->isRunning = false;
+                    this->isDecoderEnd = true;
+                    continue;
                 }
             }
             std::queue<AVPacket *> avPacketQueue = avPacketData.getAvPacketQueue();
@@ -167,16 +192,18 @@ namespace fm {
                         avPacket = avPacketQueue.front();
                         if (videoCodecContext == nullptr)
                             videoCodecContext = avPacketData.getAvCodecContext();
-                        if (videoStream == nullptr){
+                        if (videoStream == nullptr) {
                             videoStream = avPacketData.getAvStream();
                             AVDictionaryEntry *tag = NULL;
-                            int m_Rotate= 0;
+                            int m_Rotate = 0;
 
-                            uint8_t *displaymatrix = av_stream_get_side_data(videoStream, AV_PKT_DATA_DISPLAYMATRIX, NULL);
+                            uint8_t *displaymatrix = av_stream_get_side_data(videoStream,
+                                                                             AV_PKT_DATA_DISPLAYMATRIX,
+                                                                             NULL);
                             if (displaymatrix) {
                                 double theta = -av_display_rotation_get((int32_t *) displaymatrix);
                                 theta -= 360 * floor(theta / 360 + 0.9 / 360);
-                                m_Rotate = (int)theta;
+                                m_Rotate = (int) theta;
                             }
                             this->callAvFrame->onRotate(m_Rotate);
                         }
@@ -208,7 +235,7 @@ namespace fm {
         }
         LOGE("decoderMedia end");
 //        qDebug() << "decoderMedia end";
-        this->signal--;
+        minusSignal();
     }
 
 
@@ -310,7 +337,7 @@ namespace fm {
         av_frame_free(&tmpFrame);
 //        qDebug() << "decoder video end";
         LOGE("decoder video end");
-        this->signal--;
+        minusSignal();
 
     }
 
@@ -378,7 +405,7 @@ namespace fm {
         av_frame_free(&avFrame);
 //        qDebug() << "decoderAudio end";
         LOGE("decoder audio end");
-        this->signal--;
+        minusSignal();
 
     }
 
@@ -461,8 +488,7 @@ namespace fm {
         av_frame_free(&yuv420Frame);
 //        qDebug() << "renderVideo end";
         LOGE("renderVideo end");
-
-        this->signal--;
+        minusSignal();
     }
 
     void FmPlayer::renderAudio() {
@@ -521,7 +547,7 @@ namespace fm {
 
         }
         LOGE("renderAudio end");
-        this->signal--;
+        minusSignal();
         if (this->callAvFrame != nullptr && this->isStop == false) {
             LOGE("音频结束了");
             this->callAvFrame->onEnd(this->isError);
@@ -598,7 +624,8 @@ namespace fm {
             int64_t duration = videoStream->duration * av_q2d(videoStream->time_base);
             if (duration < 0) duration = 0;
             if (this->callAvFrame != nullptr && !isError)
-                this->callAvFrame->onProgress(duration, this->videoPts / 1000, this->videoDecoder->getCacheTime() / 1000);
+                this->callAvFrame->onProgress(duration, this->videoPts / 1000,
+                                              this->videoDecoder->getCacheTime() / 1000);
         }
     }
 
@@ -732,7 +759,6 @@ namespace fm {
 
     void FmPlayer::lock() {
         std::lock_guard<std::mutex> lockDecoderMutex(decoderMutex);  // 解码视频互斥锁
-
         std::lock_guard<std::mutex> lockTimeMutex(timeMutex); //时间互斥锁
         std::lock_guard<std::mutex> playerLock(playerMutex);
         clearAllQueue();
@@ -780,15 +806,16 @@ namespace fm {
     int FmPlayer::seek(int64_t time) {
         if (this->videoDecoder != nullptr && videoStream != nullptr) {
             {
-                clearAllQueue();
                 std::lock_guard<std::mutex> seekLock(decoderSeekMutex);
 
                 std::lock_guard<std::mutex> lockAudioSeekMutex(audioSeekMutex);
 
                 std::lock_guard<std::mutex> lockVideoSeekMutex(
                         videoSeekMutex); // seek 释放缓冲区，解码时候必须互斥
+                clearAllQueue();
 
                 int ret = this->videoDecoder->seek(time * AV_TIME_BASE);
+                if (ret >= 0) this->isDecoderEnd = false;
 
                 return ret;
             }
@@ -971,6 +998,24 @@ namespace fm {
         videoFrameFull.notify_one();
         audioFull.notify_one();
         audioFrameFull.notify_one();
+    }
+
+    bool FmPlayer::allQueueIsEmpty() {
+        return
+                this->audioFrameQueue.size() == 0 &&
+                this->audioPacketQueue.size() == 0 &&
+                this->videoFrameQueue.size() == 0 &&
+                this->videoPacketQueue.size() == 0;
+    }
+
+    void FmPlayer::minusSignal() {
+        std::lock_guard lockGuard(signalMutex);
+        this->signal--;
+    }
+
+    void FmPlayer::plusSignal() {
+        std::lock_guard lockGuard(signalMutex);
+        this->signal++;
     }
 
 

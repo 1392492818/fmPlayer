@@ -9,6 +9,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.animateIntOffsetAsState
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -29,12 +30,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -86,11 +92,15 @@ import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.core.content.ContextCompat.startActivity
@@ -119,7 +129,7 @@ import java.net.URLEncoder
 import kotlin.math.ceil
 
 val maxHeader = 200.dp
-val minHeader = 68.dp
+val minHeader = 80.dp
 val paddingHeader = 20.dp // 为了滑动时候不显示底部
 val offsetTopHeader = maxHeader - minHeader + paddingHeader
 val circleWidth = 160.dp
@@ -139,7 +149,7 @@ fun profileScreen(
 ) {
     val systemUiController: SystemUiController = rememberSystemUiController()
     val accessTokenList by accessTokenViewModel.accessTokenList.observeAsState()
-
+    systemUiController.setStatusBarColor(color = Color.Transparent)
     Scaffold(
         bottomBar = {
 
@@ -158,19 +168,22 @@ fun profileScreen(
             memberInfoViewModel = memberInfoViewModel,
             shortVideoViewModel = shortVideoViewModel,
             onRecord = onRecord,
-            onVideoUpload = onVideoUpload
+            onVideoUpload = onVideoUpload,
+            navController = navController
         )
 
 
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun profile(
     innerPadding: PaddingValues,
     accessTokenViewModel: AccessTokenViewModel,
     memberInfoViewModel: MemberInfoViewModel,
     shortVideoViewModel: ShortVideoViewModel,
+    navController: NavHostController,
     onRecord: () -> Unit,
     onVideoUpload: (path: String) -> Unit
 ) {
@@ -193,13 +206,14 @@ private fun profile(
         accessTokenList?.let {
             for (token in it) {
                 memberInfoViewModel.memberInfo(token.accessToken)
+                memberInfoViewModel.memberPublishInfo(token.accessToken)
                 accessToken = token
             }
         }
     }
 
     LaunchedEffect(errorCode) {
-        if (errorCode == Error.tokenOutTimeLimit) {
+        if (errorCode == Error.tokenOutTimeLimit || errorCode == Error.notFoundToken) {
             accessTokenList?.let {
                 for (accessToken in it) {
                     accessTokenViewModel.delete(accessToken.id)
@@ -214,6 +228,12 @@ private fun profile(
         IntOffset(screenWidth.toInt() + offsetX.roundToInt(), 0),
         label = "offset"
     )
+    var tabState = remember {
+        mutableStateOf(0)
+    }
+    var pagerState = rememberPagerState(pageCount = {
+        3
+    }, initialPage = 0)
 
     val contentOffset by animateIntOffsetAsState(
         targetValue =
@@ -248,7 +268,6 @@ private fun profile(
                         moved = true
                     }
                 )
-
             }
     ) {
 
@@ -283,18 +302,32 @@ private fun profile(
                     contentDescription = "Menu",
                 )
             }
-            accessToken?.let { body(scroll, shortVideoViewModel, it, innerPadding = innerPadding) }
+            accessToken?.let {
+                body(
+                    scroll,
+                    shortVideoViewModel,
+                    it,
+                    innerPadding = innerPadding,
+                    navController = navController,
+                    state = tabState,
+                    pagerState = pagerState
+                )
+            }
             memberInfo?.let {
                 title(
                     memberInfo = it,
                     scrollProvider = { scroll.value },
                     onRecord = onRecord,
                     onVideoUpload = onVideoUpload,
-                    shortVideoViewModel = shortVideoViewModel
+                    shortVideoViewModel = shortVideoViewModel,
+                    state = tabState,
+                    pagerState = pagerState
                 )
             }
-            image {
-                scroll.value
+            memberInfo?.let {
+                image(memberInfo = it) {
+                    scroll.value
+                }
             }
             if (moved) { //遮罩
                 Box(modifier = Modifier
@@ -370,12 +403,16 @@ private fun header(innerPadding: PaddingValues) {
 
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun body(
     scroll: ScrollState,
     shortVideoModel: ShortVideoViewModel,
     accessToken: AccessToken,
-    innerPadding: PaddingValues
+    navController: NavHostController,
+    innerPadding: PaddingValues,
+    state: MutableState<Int>,
+    pagerState: PagerState
 ) {
     val page by shortVideoModel.page.observeAsState()
     var isRefreshing by remember { mutableStateOf(false) }
@@ -383,7 +420,9 @@ private fun body(
     var isFinishing by remember {
         mutableStateOf(false)
     }
-    val sort = "createTime=ASC"
+
+
+    val sort = "createTime=DESC"
     LaunchedEffect(Unit) {
         shortVideoModel.getShortVideoData(accessToken = accessToken.accessToken, sort = sort)
     }
@@ -392,15 +431,33 @@ private fun body(
         isLoading = false
     }
 
+
+    LaunchedEffect(state) {
+        pagerState.scrollToPage(state.value)
+    }
+
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp.dp
     val columnNum = 3
-    val columnItemHeight = 180.dp
     val density = LocalDensity.current
-    val scope = rememberCoroutineScope()
+    var isScroll by remember {
+        mutableStateOf(false)
+    }
+    val scrollHeight =
+        configuration.screenHeightDp.dp - (offsetTopHeader + titleMinHeader - paddingHeader)
+//    -minHeader
+//    -(offsetTopHeader + titleMinHeader - paddingHeader) - 58.dp
+
+
     LaunchedEffect(scroll.value) {
+        val offset =
+            with(density) { (maxHeader.toPx() - scroll.value).coerceAtLeast(minHeader.toPx()) }
+        with(density) {
+            isScroll = offset <= minHeader.toPx() + 58.dp.toPx()
+        }
 
         if (scroll.value == scroll.maxValue) {
+            Log.e("PAGE", page?.hasNextPage.toString())
             if (page?.hasNextPage == false) {
                 isFinishing = true
             } else {
@@ -421,7 +478,7 @@ private fun body(
     }
 
 
-    Column {
+    Column() {
         Spacer(
             modifier = Modifier
                 .fillMaxWidth()
@@ -431,49 +488,74 @@ private fun body(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+//                .height(400.dp)
                 .verticalScroll(scroll)
-                .padding(5.dp, 5.dp, 5.dp, innerPadding.calculateBottomPadding())
+                .systemBarsPadding()
+                .padding(0.dp, 0.dp, 0.dp, 58.dp)
         )
         {
             Spacer(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(offsetTopHeader + titleMinHeader - paddingHeader)
+                    .systemBarsPadding()
+//                    .height(titleMinHeader + minHeader)
+                    .height(offsetTopHeader + titleMinHeader - paddingHeader - 20.dp)
             )
-            val shortVideoList = page?.getData<List<ShortVideoResponse>>()
-            shortVideoList?.let { shortVideoList ->
-                shortVideoList.chunked(columnNum).forEachIndexed { index, chunk ->
-                    Row(modifier = Modifier.height(columnItemHeight)) {
-                        chunk.forEach { shortVideo ->
-                            videoItem(
-                                modifier = Modifier
-                                    .height(columnItemHeight)
-                                    .width(screenWidth / columnNum)
-                                    .padding(2.dp)
-                                    .clickable {
-                                    },
-                                name = shortVideo.title,
-                                imageUrl = BuildConfig.API_BASE_URL + "image/" + shortVideo.cover,
-                                contentScale = ContentScale.Crop
-                            )
-                        }
+            Column(modifier = Modifier.height(scrollHeight)) { //这里使用计算高度，必须有个默认高度，不然无法计算
+
+                LaunchedEffect(pagerState) {
+                    // Collect from the a snapshotFlow reading the currentPage
+
+                    snapshotFlow { pagerState.currentPage }.collect { page ->
+                        // Do something with each page change, for example:
+                        // viewModel.sendPageSelectedEvent(page)
+                        state.value = page
                     }
                 }
 
+                HorizontalPager(state = pagerState) { pageScope ->
+                    Box(modifier = Modifier.fillMaxSize()) {
+
+                        Column(
+                            modifier =
+                            if (isScroll) Modifier.verticalScroll(rememberScrollState(0))
+                            else Modifier
+                        ) {
+                            if (pageScope == 0) {
+                                myVideo(page = page){
+                                    navController.navigate(
+                                        Screen.VideoPage.createRoute(
+                                            it
+                                        )
+                                    )
+                                }
+                            }
+                            if (pageScope == 1) {
+                                likeVideoList()
+                            }
+                            if (pageScope == 2) {
+                                collectVideoList()
+                            }
+                        }
+
+                    }
+
+                }
             }
-
-
         }
 
 
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun title(
     scrollProvider: () -> Int,
     memberInfo: MemberInfoResponse,
     shortVideoViewModel: ShortVideoViewModel,
+    state: MutableState<Int>,
+    pagerState: PagerState,
     onRecord: () -> Unit,
     onVideoUpload: (path: String) -> Unit
 ) {
@@ -495,6 +577,7 @@ private fun title(
 
             }
         }
+    val scope = rememberCoroutineScope()
     Column(modifier = Modifier
         .fillMaxWidth()
         .height(titleMinHeader)
@@ -522,12 +605,13 @@ private fun title(
                         .width(screenWidth / 2 - circleWidth / 2 + scrollProvider().dp / 2),
                     contentAlignment = Alignment.CenterStart
                 ) {
-                    Text(
-                        text = memberInfo.username,
-                        maxLines = 1,
-                        style = androidx.compose.material.MaterialTheme.typography.h6,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    if (memberInfo.username != null)
+                        Text(
+                            text = memberInfo.username,
+                            maxLines = 1,
+                            style = androidx.compose.material.MaterialTheme.typography.h6,
+                            overflow = TextOverflow.Ellipsis
+                        )
                 }
                 Box(
                     modifier = Modifier
@@ -619,28 +703,33 @@ private fun title(
 
                 }
 
-                var state by remember { mutableStateOf(0) }
                 val titles = listOf(
                     stringResource(id = R.string.profile_tab_my_video),
                     stringResource(id = R.string.profile_tab_my_like_video),
-                    stringResource(id = R.string.profile_tab_my_friend)
+                    stringResource(id = R.string.profile_tab_my_collect_video)
                 )
                 TabRow(
-                    selectedTabIndex = state,
+                    selectedTabIndex = state.value,
                     indicator = { tabPositions ->
                         // 设置指示条的样式
                         TabRowDefaults.Indicator(
                             color = Color.Black, // 指示条颜色
                             height = 2.dp, // 指示条高度
                             modifier = Modifier
-                                .tabIndicatorOffset(tabPositions[state]) // 设置指示条位置
+                                .tabIndicatorOffset(tabPositions[state.value]) // 设置指示条位置
                         )
                     }
                 ) {
                     titles.forEachIndexed { index, title ->
                         Tab(
-                            selected = state == index,
-                            onClick = { state = index },
+                            selected = state.value == index,
+                            onClick = {
+                                state.value = index
+                                scope.launch {
+                                    pagerState.scrollToPage(index)
+
+                                }
+                            },
                             selectedContentColor = Color.Black,
                             text = {
                                 Text(
@@ -664,33 +753,31 @@ private fun title(
 
 @SuppressLint("SuspiciousIndentation")
 @Composable
-private fun image(scrollProvider: () -> Int) {
+private fun image(memberInfo: MemberInfoResponse, scrollProvider: () -> Int) {
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
     val screenWidth = with(density) { configuration.screenWidthDp.dp.toPx() }
     var circleWidthState by remember {
         mutableStateOf(circleWidth)
     }
+    val profilePhoto =
+        if (memberInfo.avatar == null || memberInfo.avatar.length == 0) R.drawable.profile else BuildConfig.API_BASE_URL + "profile_photo/" + memberInfo.avatar
+
     Box(modifier = Modifier
         .width(circleWidthState)
         .height(circleWidthState)
         .offset {
             val scroll = scrollProvider()
-            val minOffsetY = minCircleWidth.toPx() / 2 + paddingHeader.toPx()
+            val minOffsetY = minCircleWidth.toPx() / 2 + paddingHeader.toPx() // 最小值 反过来其实也是最长移动距离
+            val defaultOffsetX = (screenWidth / 2) // 开始位置
+            val maxOffsetX = screenWidth - minCircleWidth.toPx(); // 最大值
+
             val offsetY =
                 (maxHeader.toPx() - scroll).coerceAtLeast(minOffsetY) - circleWidthState.toPx() / 2
-            var offsetX = (screenWidth / 2 - (circleWidthState.toPx() / 2))
-            if (circleWidth - scroll.dp > minCircleWidth) { //设置圆圈最小值
-                circleWidthState = circleWidth - scroll.dp / 2
-            } else {
-                circleWidthState = minCircleWidth
-            }
-            val maxOffsetX = screenWidth - minCircleWidth.toPx() - paddingHeader.toPx() * 2;
-            offsetX += scroll / 2
-            if (offsetX > maxOffsetX) {
-                offsetX = maxOffsetX
-            }
-
+            minOffsetY / scroll
+            var offsetX = offsetY / (minOffsetY / (maxOffsetX - defaultOffsetX))
+            offsetX =
+                defaultOffsetX - minCircleWidth.toPx() + (defaultOffsetX - minCircleWidth.toPx() / 2) - offsetX
             IntOffset(x = offsetX.toInt(), y = offsetY.toInt())
         }
     ) {
@@ -702,14 +789,16 @@ private fun image(scrollProvider: () -> Int) {
         ) {
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
-                    .data("https://t7.baidu.com/it/u=1595072465,3644073269&fm=193&f=GIF")
+                    .data(profilePhoto)
                     .crossfade(true)
                     .build(),
                 contentDescription = "",
-                placeholder = painterResource(R.drawable.no_cover),
+                placeholder = painterResource(R.drawable.profile),
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
             )
+
+
         }
 
     }

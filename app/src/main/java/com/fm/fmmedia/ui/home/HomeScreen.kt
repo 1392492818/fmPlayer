@@ -18,15 +18,18 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.BottomAppBar
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.Call
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.VideoLibrary
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableIntStateOf
@@ -40,6 +43,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
@@ -57,6 +61,8 @@ import com.fm.fmmedia.ui.Screen
 import com.fm.fmmedia.repository.VideoCategoryRepository
 import com.fm.fmmedia.ui.theme.FmMediaTheme
 import com.fm.fmmedia.viewmodel.VideoCategoryViewModel
+import com.google.accompanist.systemuicontroller.SystemUiController
+import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -67,7 +73,8 @@ enum class HomeSections(
     val route: String
 ) {
     HOME(R.string.home_home, Icons.Outlined.Home, Screen.Home.route),
-    LIVE(R.string.home_live, Icons.Outlined.Call, Screen.Live.route),
+    SHORT(R.string.home_short_video, Icons.Outlined.VideoLibrary, Screen.Short.route),
+    LIVE(R.string.home_live, Icons.Default.LiveTv, Screen.Live.route),
     PROFILE(R.string.home_profile, Icons.Outlined.AccountCircle, Screen.Profile.route)
 }
 
@@ -80,6 +87,9 @@ fun homeScreen(
     ),
     onVideoGroupClick: (name: Int) -> Unit
 ) {
+    val systemUiController: SystemUiController = rememberSystemUiController()
+//    systemUiController.setStatusBarColor(color= Color.Black)
+    systemUiController.setStatusBarColor(color = Color.White)
     var presses by remember { mutableIntStateOf(0) }
     val configuration = LocalConfiguration.current
 
@@ -104,7 +114,11 @@ fun homeScreen(
             }
         }
     ) { innerPadding ->
-        Column(modifier = Modifier.padding(innerPadding)) {
+        Column(
+            modifier = Modifier
+                .padding(0.dp, 0.dp, 0.dp, 58.dp)
+                .systemBarsPadding()
+        ) {
             SearchBar(
                 query = state.query,
                 onQueryChange = { state.query = it },
@@ -125,6 +139,11 @@ fun homeScreen(
 //                Log.e("数据", videoCategoryPage?.getData<List<CategoryVideoResponse>>().toString())
 //                mutableStateOf(videoCategoryPage?.getData<List<CategoryVideoResponse>>())
 //            }
+            LaunchedEffect(videoCategoryPage) {
+                videoCategoryPage?.let {
+                    isFinishing = !it.hasNextPage
+                }
+            }
             if (isRequestError == false) {
                 SwipeRefresh(
                     items = videoCategoryPage?.getData<List<CategoryVideoResponse>>(),
@@ -162,9 +181,15 @@ fun homeScreen(
 //                    isLoading = false
                     }) { index, videoCategory ->
 
-                    Column(modifier = Modifier.wrapContentHeight().padding(10.dp)) {
+                    Column(
+                        modifier = Modifier
+                            .wrapContentHeight()
+                            .padding(10.dp)
+                    ) {
                         Row(
-                            modifier = Modifier.fillMaxWidth().height(40.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(40.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
@@ -191,7 +216,7 @@ fun homeScreen(
                                                 onVideoGroupClick(videoGroup.id)
                                             },
                                         name = videoGroup.name,
-                                        imageUrl = BuildConfig.API_BASE_URL + "image/"+videoGroup.cover,
+                                        imageUrl = BuildConfig.API_BASE_URL + "image/" + videoGroup.cover,
                                         contentScale = ContentScale.Crop
                                     )
                                 }
@@ -264,7 +289,7 @@ fun FmBottomNavLayout(tabs: Array<HomeSections>, route: String, navController: N
                             tint = Color.White
                         )
                         if (route == it.route)
-                            Text(text = it.name, color = Color.White, fontWeight = FontWeight.Bold)
+                            Text(text = stringResource(id = it.title), color = Color.White, fontWeight = FontWeight.Bold)
                     }
                 }
             }

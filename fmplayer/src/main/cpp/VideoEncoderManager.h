@@ -14,9 +14,9 @@ private:
     std::mutex encoder;
 public:
     void init(char* path, int width, int height, AVPixelFormat format,int rotate,int  sample_rate,
-             int channel);
-    void addVideoFrame(unsigned char* data, int dataLength,int seconds);
-    void addAudioFrame(unsigned char* data, int dataLength, int seconds);
+             int channel,int type = 0);
+    bool addVideoFrame(unsigned char* data, int dataLength,int seconds);
+    bool addAudioFrame(unsigned char* data, int dataLength, int seconds);
     void stop();
 };
 

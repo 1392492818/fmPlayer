@@ -12,11 +12,23 @@ class ShortVideoViewModel(private val repository: ShortVideoRepository) :
     BaseVideoModel(repository) {
 
     val isAddSuccess = repository.isAddSuccess.asLiveData()
-    val page:LiveData<Page?> = repository.page.asLiveData()
+    val isDeleteSuccess = repository.isDeleteSuccess.asLiveData()
+    val page: LiveData<Page?> = repository.page.asLiveData()
+    val pageAll: LiveData<Page?> = repository.pageAll.asLiveData()
 
-    fun addShortVideo(accessToken:String, shortVideo: ShortVideo){
+    fun reset() {
+        repository.resetAddParams()
+    }
+
+    fun addShortVideo(accessToken: String, shortVideo: ShortVideo) {
         viewModelScope.launch {
             repository.addShortVideo(accessToken, shortVideo)
+        }
+    }
+
+    fun deleteShortVideo(accessToken: String, id: Int) {
+        viewModelScope.launch {
+            repository.deleteShortVideo(accessToken, id)
         }
     }
 
@@ -27,9 +39,21 @@ class ShortVideoViewModel(private val repository: ShortVideoRepository) :
         search: String = "",
         sort: String = "",
         isNext: Boolean = false
-    ){
+    ) {
         viewModelScope.launch {
             repository.getShortVideoData(pageNum, pageSize, search, sort, accessToken, isNext)
         }
     }
+
+    fun getShortVideoAllData(
+        pageNum: Int = 1,
+        pageSize: Int = 20,
+        search: String = "",
+        sort: String = "",
+        isNext: Boolean = false
+    ) {
+        viewModelScope.launch {
+            repository.getShortVideoAllData(pageNum, pageSize, search, sort, isNext)
+        }
     }
+}

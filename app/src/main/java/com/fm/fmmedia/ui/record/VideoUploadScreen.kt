@@ -66,13 +66,13 @@ fun videoUploadScreen(
     navController: NavController,
     path: String,
     accessTokenViewModel: AccessTokenViewModel,
+    fileUploadViewModel: FileUploadViewModel,
     redirect: () -> Unit
 ) {
     var desc by remember {
         mutableStateOf("")
     }
     val softwareKeyboardController = LocalSoftwareKeyboardController.current;
-    val fileUploadViewModel = FileUploadViewModel(FileUploadRepository())
     val videoFileUploadStatus by fileUploadViewModel.videoUploadStatus.observeAsState()
     val videoFileUploadPath = fileUploadViewModel.videoUploadPath.observeAsState()
     val imageFileUploadStatus by fileUploadViewModel.imageUploadStatus.observeAsState()
@@ -126,6 +126,7 @@ fun videoUploadScreen(
                 if (videoFileUploadStatus == true && imageFileUploadStatus == true) {
                     val cover: String = imageFileUploadPath.value.toString()
                     val source: String = videoFileUploadPath.value.toString()
+                    Log.e("测试", "上传成功");
                     if (accessToken != null) {
                         shortVideoViewModel.addShortVideo(
                             accessToken = accessToken.accessToken, ShortVideo(
@@ -138,7 +139,6 @@ fun videoUploadScreen(
                             )
                         )
                     }
-
                 }
                 onDispose { }
             }
@@ -148,7 +148,10 @@ fun videoUploadScreen(
                 if (isAddShortVideo == true) {
                     redirect()
                 }
-                onDispose { }
+                onDispose {
+                    shortVideoViewModel.reset()
+                    fileUploadViewModel.reset()
+                }
             }
 
             Column(modifier = Modifier.padding(paddingValues)) {
@@ -197,6 +200,9 @@ fun videoUploadScreen(
                                             accessToken = accessToken,
                                             progressCallback = { it ->
                                                 progress = it
+                                            },
+                                            onSuccess = {
+
                                             }
                                         )
                                 }

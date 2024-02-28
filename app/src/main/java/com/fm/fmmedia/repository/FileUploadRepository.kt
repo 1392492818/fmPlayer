@@ -21,12 +21,19 @@ class FileUploadRepository : BaseRepository() {
     val imageUploadPath: MutableStateFlow<String?> = MutableStateFlow<String?>(null)
 
     val TAG = FileUploadRepository::class.simpleName
-    suspend fun videoUpload(path: String, accessToken: String, progressCallback: (progress:Int)->Unit = {}) {
+
+    fun resetParams(){
+        videoUploadStatus.value = false
+        imageUploadStatus.value =false
+    }
+
+    suspend fun videoUpload(path: String, accessToken: String, progressCallback: (progress:Int)->Unit = {}, onSuccess: (path:String)-> Unit = {}) {
         val file: File = File(path)
         if (!file.isFile) {
             return
         }
         try {
+            videoUploadStatus.value = false
             reset()
 //            val requestBody = file.asRequestBody("multipart/form-data".toMediaTypeOrNull())
 
@@ -41,7 +48,10 @@ class FileUploadRepository : BaseRepository() {
             if (result.code == 0) {
                 videoUploadPath.value = result.parseData<String>()
                 videoUploadPath.value?.let { Log.e(TAG, it) }
+                Log.e(TAG, videoUploadStatus.value.toString())
                 videoUploadStatus.value = true
+                Log.e(TAG, videoUploadStatus.value.toString())
+                videoUploadPath.value?.let { onSuccess(it) }
             } else {
                 errorCode.value = result.code
             }
@@ -57,6 +67,7 @@ class FileUploadRepository : BaseRepository() {
             return
         }
         try {
+            imageUploadStatus.value = false
             reset()
             val requestBody = file.asRequestBody("multipart/form-data".toMediaTypeOrNull())
             val body = MultipartBody.Part.createFormData("image", file.name, requestBody)

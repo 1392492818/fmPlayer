@@ -15,11 +15,11 @@ public class FmEncoder {
         System.loadLibrary("video");
     }
 
-    private static native void encoder(String path, int width, int height, int format, int rotate, int sampleRate, int channel);
+    private static native void encoder(String path, int width, int height, int format, int rotate, int sampleRate, int channel, int type);
 
-    private static native void addVideoFrame(byte[] data, long pts);
+    private static native boolean addVideoFrame(byte[] data, long pts);
 
-    private static native void addAudioFrame(byte[] data, long pts);
+    private static native boolean addAudioFrame(byte[] data, long pts);
 
     private static native void stopEncoder();
 
@@ -32,11 +32,14 @@ public class FmEncoder {
     private int rotate = 0;
 
     private boolean isEnd = false;
-    private ConcurrentLinkedQueue<ImageData> imageDataConcurrentLinkedQueue = new ConcurrentLinkedQueue<>();
 
+    private boolean isError = false;
+    private ConcurrentLinkedQueue<ImageData> imageDataConcurrentLinkedQueue = new ConcurrentLinkedQueue<>();
+    private ConcurrentLinkedQueue<PcmData> pcmDataConcurrentLinkedQueue = new ConcurrentLinkedQueue<>();
+    private int maxSize = 200;
     private Thread videoEncoderThread;
 
-    public FmEncoder(String path, int width, int height, int format, int rotate, int sampleRate, int channel) {
+    public FmEncoder(String path, int width, int height, int format, int rotate, int sampleRate, int channel, int type) {
         this.width = width;
         this.height = height;
         this.format = format;
@@ -44,7 +47,7 @@ public class FmEncoder {
         this.channel = channel;
         this.rotate = rotate;
 
-        this.encoder(path, this.width, this.height, this.format, this.rotate, this.sampleRate, this.channel);
+        this.encoder(path, this.width, this.height, this.format, this.rotate, this.sampleRate, this.channel,  type);
         startVideoEncoderThread();
     }
 
@@ -58,8 +61,12 @@ public class FmEncoder {
                     }
                     ImageData imageData = imageDataConcurrentLinkedQueue.poll();
                     if (imageData != null) {
-                        addVideo(imageData.getData(), imageData.getPts());
+                         isError = addVideo(imageData.getData(), imageData.getPts());
+                        if (isError) {
+                            break;
+                        }
                     }
+
                     try {
                         Thread.sleep(1);
                     } catch (InterruptedException e) {
@@ -71,26 +78,29 @@ public class FmEncoder {
         videoEncoderThread.start();
     }
 
-    public void addVideo(byte[] data, long milliSeconds) {
-        this.addVideoFrame(data, milliSeconds);
+    public boolean addVideo(byte[] data, long milliSeconds) {
+        return !addVideoFrame(data, milliSeconds);
     }
 
-    public void addVideo(Image image, long pts) {
+    public boolean addVideo(Image image, long pts) {
         long start = System.currentTimeMillis();
+        if (imageDataConcurrentLinkedQueue.size() >= maxSize) imageDataConcurrentLinkedQueue.poll();
         imageDataConcurrentLinkedQueue.add(ImageFormatUtil.getYuv420pImageData(image, pts));
 //        Log.e("测试", String.valueOf(System.currentTimeMillis() - start));
 
 //        byte[] data = ImageFormatUtil.getYuv420p(image);
 //        this.addVideo(data, pts);
+        return isError;
     }
 
-    public void addAudio(byte[] data, long milliSeconds) {
-        this.addAudioFrame(data, milliSeconds);
+    public boolean addAudio(byte[] data, long milliSeconds) {
+        isError = !addAudioFrame(data, milliSeconds);
+        return isError;
     }
 
     public void endCoder() {
         isEnd = true;
-        while (!imageDataConcurrentLinkedQueue.isEmpty()) {
+        while (!imageDataConcurrentLinkedQueue.isEmpty() && !isError) {
             Log.e(TAG, String.valueOf(imageDataConcurrentLinkedQueue.size()));
             try {
                 Thread.sleep(1);

@@ -123,7 +123,7 @@ namespace fm {
         bool isError = false;
         bool isRelease = false;
         bool isEnd = false;
-        bool isExit = false;
+        bool isExit = true;
         string cache;
         VideoCache *videoCache;
         mutex cacheMutex;

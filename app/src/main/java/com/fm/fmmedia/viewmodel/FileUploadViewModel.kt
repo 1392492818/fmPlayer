@@ -21,19 +21,28 @@ class FileUploadViewModel(private val fileUploadRepository: FileUploadRepository
     val imageUploadStatus: LiveData<Boolean> = fileUploadRepository.imageUploadStatus.asLiveData()
     val imageUploadPath: LiveData<String?> = fileUploadRepository.imageUploadPath.asLiveData()
 
+
+    fun reset(){
+        fileUploadRepository.resetParams()
+    }
+
     fun videoUpload(
         path: String,
         accessToken: String,
-        progressCallback: (progress: Int) -> Unit = {}
+        progressCallback: (progress: Int) -> Unit = {},
+        onSuccess: (path:String)->Unit = {}
     ) {
         viewModelScope.launch {
             fileUploadRepository.videoUpload(
                 path = path,
                 accessToken = accessToken,
-                progressCallback = progressCallback
+                progressCallback = progressCallback,
+                onSuccess = onSuccess
             )
         }
     }
+
+
 
     fun imageUpload(path: String, accessToken: String) {
         viewModelScope.launch {

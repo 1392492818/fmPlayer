@@ -75,14 +75,14 @@ namespace fm {
 
     class FmEncoder {
     public:
-        FmEncoder(const char* input, int width, int height, AVPixelFormat format,int rotate, int sample_rate, int channels);
+        FmEncoder(const char* input, int width, int height, AVPixelFormat format,int rotate, int sample_rate, int channels, int pathType = 0);
         bool init();
         int encoder_video_frame(char* data, int dataLength, long seconds);
         int encoder_audio_frame(unsigned char* data, int dataLength, long seconds);
         void start_encoder_video();
         void start_encoder_audio();
-        void add_video_frame(unsigned char* data, int dataLength, long seconds);
-        void add_audio_frame(unsigned char * data, int dataLength, long seconds);
+        bool add_video_frame(unsigned char* data, int dataLength, long seconds);
+        bool add_audio_frame(unsigned char * data, int dataLength, long seconds);
         void end();
     private:
         const char* output;
@@ -91,8 +91,10 @@ namespace fm {
         int rotate = 0;
         int isExit = false;
         int imageIndex = 0;
+        int pathType = 0; //
         int sample_rate;
         int channels;
+        void error();
         AVPixelFormat format;
         AVDictionary *opt = NULL;
         const AVOutputFormat *fmt;

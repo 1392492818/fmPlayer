@@ -6,10 +6,10 @@ import com.google.gson.Gson
 
 class Page(
     val total: Int,
-    var list: List<Any>,
+    var list: MutableList<Any>,
     val pageNum: Int,
     val pageSize: Int,
-    val size: Int,
+    var size: Int,
     val startRow: Int,
     val endRow: Int,
     val pages: Int,
@@ -18,7 +18,7 @@ class Page(
     val isFirstPage: Boolean,
     val isLastPage: Boolean,
     val hasPreviousPage: Boolean,
-    val hasNextPage: Boolean,
+    var hasNextPage: Boolean,
     val navigatePages: Int,
     val navigatepageNums: Array<Int>,
     val navigateFirstPage: Int,

@@ -43,7 +43,10 @@ namespace fm {
         std::thread audioDecoderThread;
         std::thread videoRenderThread;
         std::thread audioRenderThread;
+        std::mutex signalMutex;
         int signal = 0;
+        void minusSignal();
+        void plusSignal();
     public:
         float getSpeedAudio() const;
 
@@ -143,6 +146,7 @@ namespace fm {
         AVCodecContext *codecContext;
         bool isPlayer = false;
         bool isRunning = false;
+        bool isDecoderEnd = false;
         bool isStop = false; //却分用户触发结束，还是自动播放结束
         std::string input;
 
@@ -159,6 +163,7 @@ namespace fm {
         bool isAndroidDecoder = false;
         bool isAndroidError = false;
         bool isAnnexb = false;
+        bool allQueueIsEmpty();
         std::ofstream outputFile;
 #endif
     };

@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyRow
@@ -142,11 +143,12 @@ fun control(
 
             },
             onValueChangeFinished = {
-//                isSeek.value = false
+                isSeek.value = false
                 isVideoLoading.value = true
                 Log.e("slider", "设置")
                 if (isRelease.value) {
                     isRelease.value = false;
+                    isSeek.value = false
                     fmGlView.value?.reset(path, position.value.toLong())
                 } else {
                     fmGlView.value?.seek(position.value.toLong())
@@ -332,7 +334,10 @@ fun VideoPlayer(
     isShowBack: Boolean = true,
     isFullWidth: Boolean = false,
     isReleasePlayer: Boolean = false,
+    isShowControlDefault:Boolean = true,
+    isLoop:Boolean = false,
     playerEnd: () -> Unit = {},
+    isCover: (isCover:Boolean) ->Unit = {},
     onBack: () -> Unit = {}
 ) {
 
@@ -428,17 +433,20 @@ fun VideoPlayer(
     LaunchedEffect(path) {
         Log.e("videoPlayer", "修改")
         fmGlView.value?.release()
-        position.value = 0f
+//        position.value = 0f
         isVideoLoading.value = true
         fmGlView.value?.reset(path, position.value.toLong())
     }
 
     LaunchedEffect(isReleasePlayer){
-        if(isReleasePlayer)
+        Log.e("Page", isReleasePlayer.toString())
+        if(isReleasePlayer) {
+            Log.e("Page", "释放")
+            playerEnd()
             fmGlView.value?.release()
-        else
+            isRelease.value = true
+        } else
             fmGlView.value?.reset(path, position.value.toLong())
-
     }
 
 
@@ -454,6 +462,14 @@ fun VideoPlayer(
                 isShowControl = false
             }
         }
+    }
+
+    DisposableEffect(Unit){
+        onDispose {
+            fmGlView.value?.release()
+
+        }
+
     }
 
     LifecycleEffect(onResume = {
@@ -570,13 +586,15 @@ fun VideoPlayer(
                 seekTime = position.value.toLong(),
                 cachePath = cacheDir,
                 isFullWidth = isFullWidth,
+                isLoop = isLoop,
                 width = screenWidth.toInt(),
                 progress = { currentPosition, duration, cache, isSeekSuccess ->
                     isVideoLoading.value = false
                     cacheProgress = (cache.toFloat() / duration.toFloat()).toFloat()
-                    if (isSeekSuccess) {
-                        isSeek.value = false
-                    }
+//                    if (isSeekSuccess) {
+//                        isSeek.value = false
+//                    }
+                    isCover(false)
                     if (!isSeek.value) //如果 seek 了，然后需要等seek完毕了，再更新了
                         position.value = currentPosition.toFloat()
                     progress.value = duration.toFloat()
@@ -584,9 +602,10 @@ fun VideoPlayer(
                 endCallback = { error ->
                     fmGlView.value?.release()
                     isRelease.value = true
+                    isVideoLoading.value = false
+
                     if (error) {
                         isError = true
-                        isVideoLoading.value = false
                     } else {
                         playerEnd()
                     }
@@ -640,7 +659,7 @@ fun VideoPlayer(
             )
         }
 
-        if (isShowControl) {
+        if (isShowControl && isShowControlDefault) {
             control(
                 playerImage = playerImage,
                 isPlayer = isPlayer,
@@ -662,6 +681,9 @@ fun VideoPlayer(
                 isVideoLoading = isVideoLoading
             )
         }
+
+
+
         DisposableEffect(isPlayer.value) {
             Log.e("测试", "修改了吗")
             if (isPlayer.value) {
@@ -674,6 +696,19 @@ fun VideoPlayer(
             onDispose { /* cleanup logic here */ }
         }
 
+        if((isShowControl && isShowControlDefault) || !isPlayer.value) {
+            Icon(
+                imageVector = ImageVector.vectorResource(playerImage.value),
+                tint = Color.White,
+                contentDescription = stringResource(R.string.home_label_search),
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .clickable {
+                        isPlayer.value = !isPlayer.value
+                    }
+                    .size(50.dp)
+            )
+        }
 
 
 

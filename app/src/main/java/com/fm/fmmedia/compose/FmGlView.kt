@@ -138,7 +138,6 @@ class FmGlView(
     }
 
     fun release() {
-        Log.e(TAG, "停止")
         fmPlayer.release()
     }
 
