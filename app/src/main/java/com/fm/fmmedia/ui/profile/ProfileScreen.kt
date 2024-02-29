@@ -98,6 +98,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
@@ -421,7 +424,6 @@ private fun body(
         mutableStateOf(false)
     }
 
-
     val sort = "createTime=DESC"
     LaunchedEffect(Unit) {
         shortVideoModel.getShortVideoData(accessToken = accessToken.accessToken, sort = sort)
@@ -447,17 +449,18 @@ private fun body(
         configuration.screenHeightDp.dp - (offsetTopHeader + titleMinHeader - paddingHeader)
 //    -minHeader
 //    -(offsetTopHeader + titleMinHeader - paddingHeader) - 58.dp
+    var offsetY by remember { mutableStateOf(0f) }
 
-
+    var scope =  rememberCoroutineScope()
     LaunchedEffect(scroll.value) {
         val offset =
             with(density) { (maxHeader.toPx() - scroll.value).coerceAtLeast(minHeader.toPx()) }
         with(density) {
-            isScroll = offset <= minHeader.toPx() + 58.dp.toPx()
+            isScroll = offset <= minHeader.toPx() + 20.dp.toPx()
+//            Log.e("测试", "是否滑动" + isScroll)
         }
 
         if (scroll.value == scroll.maxValue) {
-            Log.e("PAGE", page?.hasNextPage.toString())
             if (page?.hasNextPage == false) {
                 isFinishing = true
             } else {
@@ -478,7 +481,7 @@ private fun body(
     }
 
 
-    Column() {
+    Column {
         Spacer(
             modifier = Modifier
                 .fillMaxWidth()
@@ -486,10 +489,39 @@ private fun body(
         )
 
         Column(
-            modifier = Modifier
+            modifier =
+            Modifier
                 .fillMaxSize()
-//                .height(400.dp)
                 .verticalScroll(scroll)
+                .nestedScroll(connection = object : NestedScrollConnection {
+                    override fun onPreScroll(
+                        available: Offset,
+                        source: NestedScrollSource
+                    ): Offset {
+                        Log.e("消费之前", "${available.y}");
+                        // 在嵌套滚动之前调用
+                        offsetY += available.y
+                        if (isScroll) {
+                            return Offset.Zero
+                        } else {
+                            scope.launch {
+                                Log.e("测试", offsetY.toString())
+                                scroll.scrollTo(-offsetY.toInt())
+                            }
+                            return available;
+                        }
+
+                    }
+
+                    override fun onPostScroll(
+                        consumed: Offset,
+                        available: Offset,
+                        source: NestedScrollSource
+                    ): Offset {
+                        // 在嵌套滚动之后调用
+                        return Offset.Zero
+                    }
+                })
                 .systemBarsPadding()
                 .padding(0.dp, 0.dp, 0.dp, 58.dp)
         )
@@ -515,14 +547,14 @@ private fun body(
 
                 HorizontalPager(state = pagerState) { pageScope ->
                     Box(modifier = Modifier.fillMaxSize()) {
-
                         Column(
                             modifier =
-                            if (isScroll) Modifier.verticalScroll(rememberScrollState(0))
-                            else Modifier
+//                            if (isScroll)
+                             Modifier.verticalScroll(rememberScrollState(0))
+//                            else Modifier
                         ) {
                             if (pageScope == 0) {
-                                myVideo(page = page){
+                                myVideo(page = page) {
                                     navController.navigate(
                                         Screen.VideoPage.createRoute(
                                             it

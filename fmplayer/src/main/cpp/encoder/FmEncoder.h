@@ -90,6 +90,7 @@ namespace fm {
         int height;
         int rotate = 0;
         int isExit = false;
+        int isError = false;
         int imageIndex = 0;
         int pathType = 0; //
         int sample_rate;

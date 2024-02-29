@@ -461,14 +461,14 @@ bool fm::FmEncoder::init() {
 }
 
 void fm::FmEncoder::end() {
-//    this->isExit = true;
+    this->isExit = true;
 
     LOGE("end");
     while (true) {
         if (this->videoQueue.empty() && this->audioQueue.empty()) break;
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
-    if (this->isExit) return;
+    if (this->isError) return;
     if (have_video) {
         write_frame(oc, (&video_st)->enc, (&video_st)->st, nullptr, (&video_st)->tmp_pkt,
                     &video_st.prev_packet_pts);
@@ -602,7 +602,7 @@ int fm::FmEncoder::encoder_audio_frame(unsigned char *data, int length, long sec
 }
 
 bool fm::FmEncoder::add_video_frame(unsigned char *data, int dataLength, long seconds) {
-    if (isExit) {
+    if (isError) {
         return false;
     }
     {
@@ -613,7 +613,7 @@ bool fm::FmEncoder::add_video_frame(unsigned char *data, int dataLength, long se
 }
 
 bool fm::FmEncoder::add_audio_frame(unsigned char *data, int dataLength, long seconds) {
-    if (isExit) return false;
+    if (isError) return false;
     {
         std::lock_guard lock(this->audioQueueMutex);
         this->audioQueue.push(FrameInfo(data, dataLength, seconds));
@@ -624,6 +624,7 @@ bool fm::FmEncoder::add_audio_frame(unsigned char *data, int dataLength, long se
 void fm::FmEncoder::error() {
     LOGE("编码错误了");
     this->isExit = true;
+    this->isError = true;
     std::lock_guard lock(this->videoQueueMutex);
     std::queue<FrameInfo> emptyQueue;
     this->videoQueue.swap(emptyQueue);
