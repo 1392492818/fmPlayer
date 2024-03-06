@@ -27,6 +27,7 @@ import com.fm.fmmedia.ui.login.loginScreen
 import com.fm.fmmedia.ui.login.registerScreen
 import com.fm.fmmedia.ui.home.homeScreen
 import com.fm.fmmedia.ui.live.LiveScreen
+import com.fm.fmmedia.ui.opengl.OpenglScreen
 import com.fm.fmmedia.ui.profile.profileScreen
 import com.fm.fmmedia.ui.record.RecordScreen
 import com.fm.fmmedia.ui.record.VideoEditScreen
@@ -339,6 +340,10 @@ fun fmNavHost(
                     navController = navController
                 )
             }
+        }
+
+        composable(route = Screen.Opengl.route) {
+            OpenglScreen()
         }
 
     }

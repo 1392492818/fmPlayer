@@ -16,3 +16,4 @@ dependencyResolutionManagement {
 rootProject.name = "FmMedia"
 include(":app")
 include(":fmplayer")
+include(":openglRender")

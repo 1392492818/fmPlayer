@@ -20,11 +20,11 @@ android {
             useSupportLibrary = true
         }
         ndk {
-            abiFilters += listOf("arm64-v8a", "x86")
+            abiFilters += listOf("arm64-v8a")
         }
         externalNativeBuild {
             cmake {
-                abiFilters += listOf("arm64-v8a", "x86") // 'armeabi-v7a' ,
+                abiFilters += listOf("arm64-v8a") // 'armeabi-v7a' ,
             }
         }
     }
@@ -141,6 +141,8 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:$nav_version")
     implementation("io.coil-kt:coil-compose:2.5.0")
     implementation(project(":fmplayer"))
+    implementation(project(":openglRender"))
+
 
 
 }

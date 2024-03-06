@@ -75,7 +75,8 @@ enum class HomeSections(
     HOME(R.string.home_home, Icons.Outlined.Home, Screen.Home.route),
     SHORT(R.string.home_short_video, Icons.Outlined.VideoLibrary, Screen.Short.route),
     LIVE(R.string.home_live, Icons.Default.LiveTv, Screen.Live.route),
-    PROFILE(R.string.home_profile, Icons.Outlined.AccountCircle, Screen.Profile.route)
+    PROFILE(R.string.home_profile, Icons.Outlined.AccountCircle, Screen.Profile.route),
+    OPENGL(R.string.home_opengl, Icons.Outlined.AccountCircle, Screen.Opengl.route)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

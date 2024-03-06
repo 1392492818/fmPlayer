@@ -18,13 +18,13 @@ android {
 
         ndk {
            //noinspection ChromeOsAbiSupport
-           abiFilters += listOf("arm64-v8a", "x86")
+           abiFilters += listOf("arm64-v8a")
         }
 
         externalNativeBuild {
             cmake {
                 cppFlags
-                abiFilters += listOf("arm64-v8a", "x86") // 'armeabi-v7a' ,
+                abiFilters += listOf("arm64-v8a") // 'armeabi-v7a' ,
             }
         }
     }

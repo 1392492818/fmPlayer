@@ -41,6 +41,7 @@ import com.fm.fmmedia.viewmodel.AccessTokenModelFactory
 import com.fm.fmmedia.viewmodel.AccessTokenViewModel
 import com.fm.fmmedia.viewmodel.VideoCategoryModelFactory
 import com.fm.fmmedia.viewmodel.VideoCategoryViewModel
+import com.fm.openglrender.OpenglRender
 
 class MainActivity : ComponentActivity() {
 
@@ -58,7 +59,6 @@ class MainActivity : ComponentActivity() {
         setContent {
 
             enableEdgeToEdge()
-
             // 设置状态栏背景为指定颜色（这里使用红色作为示例）
 //            DynamicColors.applyTo(context)
 //            window?.statusBarColor = Color.White.toArgb()

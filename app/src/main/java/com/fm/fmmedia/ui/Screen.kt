@@ -49,6 +49,8 @@ sealed class Screen(
 
     object Live : Screen("Live")
 
+    object Opengl: Screen("Opengl")
+
 
     object Profile : Screen("Profile")
 

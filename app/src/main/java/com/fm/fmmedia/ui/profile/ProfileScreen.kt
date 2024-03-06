@@ -456,6 +456,7 @@ private fun body(
         val offset =
             with(density) { (maxHeader.toPx() - scroll.value).coerceAtLeast(minHeader.toPx()) }
         with(density) {
+            //offsetY = -offset
             isScroll = offset <= minHeader.toPx() + 20.dp.toPx()
 //            Log.e("测试", "是否滑动" + isScroll)
         }
@@ -498,14 +499,14 @@ private fun body(
                         available: Offset,
                         source: NestedScrollSource
                     ): Offset {
-                        Log.e("消费之前", "${available.y}");
                         // 在嵌套滚动之前调用
+                        if(available.x != 0f) return Offset.Zero
                         offsetY += available.y
+                        if(offsetY > 0) offsetY = 0f
                         if (isScroll) {
                             return Offset.Zero
                         } else {
                             scope.launch {
-                                Log.e("测试", offsetY.toString())
                                 scroll.scrollTo(-offsetY.toInt())
                             }
                             return available;
