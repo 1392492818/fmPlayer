@@ -39,6 +39,15 @@ struct Texture {
     string path;
 };
 
+struct Material {
+        //材质颜色光照
+        glm::vec4 Ka;
+        //漫反射
+        glm::vec4 Kd;
+        //镜反射
+        glm::vec4 Ks;
+};
+
 class Mesh {
 public:
     /*  Mesh Data  */
@@ -46,15 +55,17 @@ public:
     vector<unsigned int> indices;
     vector<Texture> textures;
     unsigned int VAO;
+    unsigned int uniformBlockIndex;
+    Material mats;
 
     /*  Functions  */
     // constructor
-    Mesh(vector<Vertex> vertices, vector<unsigned int> indices, vector<Texture> textures)
+    Mesh(vector<Vertex> vertices, vector<unsigned int> indices, vector<Texture> textures, Material mat = Material())
     {
         this->vertices = vertices;
         this->indices = indices;
         this->textures = textures;
-
+        this->mats = mat;
         // now that we have all the required data, set the vertex buffers and its attribute pointers.
         setupMesh();
     }
@@ -88,17 +99,30 @@ public:
             // and finally bind the texture
             glBindTexture(GL_TEXTURE_2D, textures[i].id);
         }
-        
+
+
         // draw mesh
         glBindVertexArray(VAO);
+
+        //lnb
+        GLuint Materi_id = glGetUniformBlockIndex(shader.ID, "Mat");
+        glUniformBlockBinding(shader.ID, Materi_id, 0);
+
+        glBindBufferRange(GL_UNIFORM_BUFFER, 0, uniformBlockIndex, 0, sizeof(Material));
+
+
         glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
         glBindVertexArray(0);
 
+
+
+        glActiveTexture(GL_TEXTURE0);
+
         // always good practice to set everything back to defaults once configured.
         //glActiveTexture(GL_TEXTURE0);
-        for(unsigned int i = 0; i < textures.size(); i++) {
-            glBindTexture(GL_TEXTURE_2D + i, 0);//解绑
-        }
+//        for(unsigned int i = 0; i < textures.size(); i++) {
+//            glBindTexture(GL_TEXTURE_2D + i, 0);//解绑
+//        }
     }
 
     void Destroy()
@@ -124,6 +148,7 @@ private:
         glGenVertexArrays(1, &VAO);
         glGenBuffers(1, &VBO);
         glGenBuffers(1, &EBO);
+        glGenBuffers(1, &uniformBlockIndex);
 
         glBindVertexArray(VAO);
         // load data into vertex buffers
@@ -131,7 +156,12 @@ private:
         // A great thing about structs is that their memory layout is sequential for all its items.
         // The effect is that we can simply pass a pointer to the struct and it translates perfectly to a glm::vec3/2 array which
         // again translates to 3/2 floats which translates to a byte array.
-        glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), &vertices[0], GL_STATIC_DRAW);  
+
+//        glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), &vertices[0], GL_STATIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex) + sizeof(mats), &vertices[0], GL_STATIC_DRAW);
+        glBindBuffer(GL_UNIFORM_BUFFER, uniformBlockIndex);
+        glBufferData(GL_UNIFORM_BUFFER,sizeof(mats),(void*)(&mats), GL_STATIC_DRAW);
+
 
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), &indices[0], GL_STATIC_DRAW);

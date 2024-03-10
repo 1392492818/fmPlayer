@@ -140,6 +140,7 @@ private:
         vector<unsigned int> indices;
         vector<Texture> textures;
         // Walk through each of the mesh's vertices
+        LOGCATD("node %s", mesh->mName.C_Str());
         for(unsigned int i = 0; i < mesh->mNumVertices; i++)
         {
             Vertex vertex;
@@ -188,8 +189,26 @@ private:
             for(unsigned int j = 0; j < face.mNumIndices; j++)
                 indices.push_back(face.mIndices[j]);
         }
+
         // process materials
-        aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];    
+        aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
+
+        //读取mtl文件顶点数据
+        Material mat;
+        aiColor3D color;
+        //环境光
+        material->Get(AI_MATKEY_COLOR_AMBIENT, color);
+        mat.Ka = glm::vec4(color.r, color.g, color.b, 1.0);
+        material->Get(AI_MATKEY_COLOR_DIFFUSE, color);
+        mat.Kd = glm::vec4(color.r, color.g, color.b, 1.0);
+        material->Get(AI_MATKEY_COLOR_SPECULAR, color);
+        mat.Ks = glm::vec4(color.r, color.g, color.b, 1.0);
+
+
+        LOGCATD("node Kd %s %f %f %f", material->GetName().C_Str(), mat.Kd.x,  mat.Kd.y,  mat.Kd.z);
+
+        // 读取高光颜色
+
         // we assume a convention for sampler names in the shaders. Each diffuse texture should be named
         // as 'texture_diffuseN' where N is a sequential number ranging from 1 to MAX_SAMPLER_NUMBER. 
         // Same applies to other texture as the following list summarizes:
@@ -211,7 +230,7 @@ private:
         textures.insert(textures.end(), heightMaps.begin(), heightMaps.end());
         
         // return a mesh object created from the extracted mesh data
-        return Mesh(vertices, indices, textures);
+        return Mesh(vertices, indices, textures, mat);
     }
 
     // checks all material textures of a given type and loads the textures if they're not loaded yet.

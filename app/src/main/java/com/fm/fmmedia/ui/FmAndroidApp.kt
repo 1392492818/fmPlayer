@@ -144,7 +144,7 @@ fun fmNavHost(
 
     NavHost(
         navController = navController,
-        startDestination = Screen.Home.route
+        startDestination = Screen.Opengl.route
     ) {
         composable(route = Screen.Login.route) {
             loginScreen(

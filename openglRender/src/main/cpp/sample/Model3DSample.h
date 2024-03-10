@@ -31,7 +31,7 @@ private:
 	glm::mat4 m_ModelMatrix;
 	Shader *m_pShader;
 	Model *m_pModel;
-
+	glm::vec3 lampPos;
 	int m_AngleX;
 	int m_AngleY;
 	float m_ScaleX;

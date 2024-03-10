@@ -9,7 +9,7 @@ Model3DSample::Model3DSample()
 
 	m_ScaleX = 1.0f;
 	m_ScaleY = 1.0f;
-
+    lampPos = glm::vec3(0.5f, 1.0f, 1.5f);
 	m_pModel = nullptr;
 	m_pShader = nullptr;
 }
@@ -39,33 +39,46 @@ void Model3DSample::Init()
             "uniform vec3 lightPos;\n"
             "uniform vec3 lightColor;\n"
             "uniform vec3 viewPos;\n"
-            "out vec3 ambient;\n"
-            "out vec3 diffuse;\n"
-            "out vec3 specular;\n"
-			"void main()\n"
+            "uniform Mat{\n"
+            "vec4 aAmbient;\n"
+            "vec4 aDiffuse;\n"
+            "vec4 aSpecular;\n"
+            "};"
+            "out vec3 Normal;"
+            "out vec4 Ambient;\n"
+            "out vec4 Diffuse;\n"
+            "out vec4 Specular;\n"
+            "out vec3 FragPos;"
+            "void main()\n"
 			"{\n"
 			"    v_texCoord = a_texCoord;    \n"
+            "    FragPos = vec3( u_ModelMatrix * vec4(a_position, 1.0));"
             "    vec4 position = vec4(a_position, 1.0);\n"
             "    gl_Position = u_MVPMatrix * position;\n"
             "    vec3 fragPos = vec3(u_ModelMatrix * position);\n"
-            "\n"
-            "    // Ambient\n"
-            "    float ambientStrength = 0.25;\n"
-            "    ambient = ambientStrength * lightColor;\n"
-            "\n"
-            "    // Diffuse\n"
-            "    float diffuseStrength = 0.5;\n"
-            "    vec3 unitNormal = normalize(vec3(u_ModelMatrix * vec4(a_normal, 1.0)));\n"
-            "    vec3 lightDir = normalize(lightPos - fragPos);\n"
-            "    float diff = max(dot(unitNormal, lightDir), 0.0);\n"
-            "    diffuse = diffuseStrength * diff * lightColor;\n"
-            "\n"
-            "    // Specular\n"
-            "    float specularStrength = 0.3;\n"
-            "    vec3 viewDir = normalize(viewPos - fragPos);\n"
-            "    vec3 reflectDir = reflect(-lightDir, unitNormal);\n"
-            "    float spec = pow(max(dot(unitNormal, reflectDir), 0.0), 16.0);\n"
-            "    specular = specularStrength * spec * lightColor;\n"
+            "    Normal = mat3(transpose(inverse(u_ModelMatrix))) * a_normal; "
+            "    Ambient = aAmbient;\n"
+            "    Diffuse = aDiffuse;\n"
+            "    Specular = aSpecular;\n"
+//            "\n"
+//            "    // Ambient\n"
+//            "    float ambientStrength = 0.25;\n"
+//            "    Ambient = lightColor * aAmbient;\n"
+//            "\n"
+//            "    // Diffuse\n"
+//            "    float diffuseStrength = 0.5;\n"
+////            "    vec3 unitNormal = normalize(vec3(u_ModelMatrix * vec4(a_normal, 1.0)));\n"
+//            "    vec3 unitNormal = normalize(a_normal);"
+//            "    vec3 lightDir = normalize(lightPos - fragPos);\n"
+//            "    float diff = max(dot(unitNormal, lightDir), 0.0);\n"
+//            "    Diffuse = lightColor * (diff * aDiffuse);\n"
+//            "\n"
+//            "    // Specular\n"
+//            "    float specularStrength = 0.3;\n"
+//            "    vec3 viewDir = normalize(viewPos - fragPos);\n"
+//            "    vec3 reflectDir = reflect(-lightDir, unitNormal);\n"
+//            "    float spec = pow(max(dot(unitNormal, reflectDir), 0.0), 32.0f);\n"
+//            "    Specular = lightColor * (spec * aSpecular);\n"
 			"}";
 
 	char fShaderStr[] =
@@ -86,23 +99,65 @@ void Model3DSample::Init()
 
     char fNoTextureShaderStr[] =
             "#version 300 es\n"
-            "precision highp float;\n"
+            "precision mediump float;\n"
             "out vec4 outColor;\n"
-            "in vec3 ambient;\n"
-            "in vec3 diffuse;\n"
-            "in vec3 specular;\n"
+            "in vec4 Ambient;\n"
+            "in vec4 Diffuse;\n"
+            "in vec4 Specular;\n"
+            "in vec3 FragPos;"
+            "in vec3 Normal;"
+            "uniform float shininess;"
+            "uniform vec3 viewPos;\n"
+            "struct Light{\n"
+            "    vec3 position;  \n"
+            "  \n"
+            "    vec3 ambient;\n"
+            "    vec3 diffuse;\n"
+            "    vec3 specular;\n"
+            "\t\n"
+            "    float constant;\n"
+            "    float linear;\n"
+            "    float quadratic;\n"
+            "};"
+            "uniform Light light;\n"
+            " \n"
             "void main()\n"
             "{    \n"
-            "    vec4 objectColor = vec4(0.6, 0.6, 0.6, 1.0);\n"
-            "    vec3 finalColor = (ambient + diffuse + specular) * vec3(objectColor);\n"
-            "    outColor = vec4(finalColor, 1.0);\n"
+//            "    vec4 objectColor = vec4(0.1, 0.1, 0.1, 1.0);\n"
+//            "    vec3 finalColor = (Ambient + Diffuse + Specular);\n"
+//            "    outColor = vec4(finalColor, 1.0);\n"
+//              "// ambient\n"
+            "    vec3 ambient = light.ambient * Diffuse.rgb;\n"
+            "  \t\n"
+            "    // diffuse \n"
+            "    vec3 norm = normalize(Normal);\n"
+            "    vec3 lightDir = normalize(light.position - FragPos);\n"
+            "    float diff = max(dot(norm, lightDir), 0.0);\n"
+            "    vec3 diffuse =light.diffuse * diff *Diffuse.rgb;  \n"
+//            "      \n"
+            "    // attenuation\n"
+            "    float distance    = length(light.position - FragPos);\n"
+            "    float attenuation = 1.0 / (light.constant + light.linear * distance + light.quadratic * (distance * distance));    \n"
+            "\t// specular\n"
+            "    vec3 viewDir = normalize(viewPos - FragPos);\n"
+            "    vec3 reflectDir = reflect(-lightDir, norm);  \n"
+            "    float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);\n"
+            "    vec3 specular = light.specular * spec * Specular.rgb;  \n"
+            "\t\n"
+            "    //ambient  *= attenuation;\n"
+            "    diffuse   *= attenuation;\n"
+            "    specular *= attenuation;\n"
+            "\t\n"
+            "    vec3 result = ambient + diffuse +specular;\n"
+            "     outColor = vec4(result, 1.0);"
+            "\n"
             "}";
     //app层已把model文件夹拷贝到 /sdcard/Android/data/com.chenxf.opengles/files/Download 路径下，所以这里可以加载模型
 	std::string path(DEFAULT_OGL_ASSETS_DIR);
 
     DEBUG_LOGCATE();
 //    m_pModel = new Model(path + "/avata1/eva.obj");
-    m_pModel = new Model(path + "/avata1/nanosuit.blend");
+    m_pModel = new Model(path + "/carModel/Asiatic_dragon.obj");
 
     //m_pModel = new Model(path + "/model/vampire/dancing_vampire.dae");
     //m_pModel = new Model(path + "/model/gltf/girl.gltf");
@@ -144,10 +199,22 @@ void Model3DSample::Draw(int screenW, int screenH)
     m_pShader->setVec3("lightPos", glm::vec3(0, 0, m_pModel->GetMaxViewDistance()));
     m_pShader->setVec3("lightColor", glm::vec3(1.0f, 1.0f, 1.0f));
     m_pShader->setVec3("viewPos", glm::vec3(0, 0, m_pModel->GetMaxViewDistance()));
+
+    m_pShader->setVec3("light.ambient", glm::vec3(0.8f, 0.8f, 0.8f));
+    m_pShader->setVec3("light.diffuse",  glm::vec3(0.1f, 0.1f, 0.1f));
+    m_pShader->setVec3("light.specular", glm::vec3(1.0f, 1.0f, 1.0f));
+    m_pShader->setVec3("light.position", lampPos);
+    // 设置衰减系数
+    m_pShader->setFloat("light.constant", 1.0f);
+    m_pShader->setFloat("light.linear", 0.09f);
+    m_pShader->setFloat("light.quadratic", 0.032f);
+    m_pShader->setFloat("shininess", 64.0f);
+
     m_pModel->Draw((*m_pShader));
 
     LOGCATE("Model3DSample::Draw() done");
 }
+
 
 void Model3DSample::Destroy()
 {
@@ -196,8 +263,9 @@ void Model3DSample::UpdateMVPMatrix(glm::mat4 &mvpMatrix, int angleX, int angleY
 	Model = glm::translate(Model, -m_pModel->GetAdjustModelPosVec());
     m_ModelMatrix = Model;
 	mvpMatrix = Projection * View * Model;
-
 }
+
+
 
 void Model3DSample::UpdateTransformMatrix(float rotateX, float rotateY, float scaleX, float scaleY)
 {
